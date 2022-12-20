@@ -22,10 +22,11 @@ const io = socketIo(server, {
 
 const randomColors = ['red', 'green', 'blue'];
 let assignedColors = 0;
+let connectedClients = {};
 
 const startSocketServer = async () => {
   let puzzles = {};
-  // TODO: Rename to Rooms
+
   const validRooms = (await getValidRooms()).map((room) => room.name);
 
   io.on("connection", async (socket) => {
@@ -145,7 +146,6 @@ const startSocketServer = async () => {
         // Check room before deleting
         const room = clientToDelete.room;
         delete connectedClients[socket.id];
-        delete clientsHighlights[socket.id];
 
         // Recount clients in room
         let count = 0;

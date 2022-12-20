@@ -11,6 +11,7 @@ router.get("/", (req, res) => {
 
 router.get("/secret", async (req, res) => {
   const room = req.query.room;
+  console.log('User is trying to access room: ', room);
 
   const validRooms = (await getValidRooms()).map(room => room.name);
 
