@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { getValidKeys } = require('../db');
+const { getValidRooms } = require('../db');
 const {
   findPuzzleBySearchString
 } = require("../data");
@@ -10,15 +10,15 @@ router.get("/", (req, res) => {
 });
 
 router.get("/secret", async (req, res) => {
-  const key = req.query.key;
+  const room = req.query.room;
 
-  const validKeys = (await getValidKeys()).map(key => key.name);
+  const validRooms = (await getValidRooms()).map(room => room.name);
 
-  if (validKeys.includes(key)) {
-    return res.send({ sent: key }).status(200);
+  if (validRooms.includes(room)) {
+    return res.send({ sent: room }).status(200);
   }
 
-  res.send({ error: 'Key not valid', sent: key }).status(404);
+  res.send({ error: 'Room not valid', sent: room }).status(404);
 });
 
 router.get("/search", async (req, res) => {

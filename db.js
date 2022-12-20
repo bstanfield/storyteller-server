@@ -17,7 +17,7 @@ const db = pgp({
     },
 });
 
-const getValidKeys = async () => db.query('SELECT * FROM room_keys')
+const getValidRooms = async () => db.query('SELECT * FROM rooms')
 
 // Queries
 const updateGame = (room, guesses, scores) => {
@@ -61,7 +61,7 @@ const insertPuzzle = (created_at, completed_at, room, board, mappings, guesses, 
 
 module.exports = {
   db,
-  getValidKeys,
+  getValidRooms,
   updateGame,
   getPuzzle,
   insertCompletionTimestamp,
