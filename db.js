@@ -17,13 +17,22 @@ const db = pgp({
     },
 });
 
+const getOldestRoom = async () => db.query('SELECT * FROM rooms ORDER BY created_at ASC LIMIT 1');
+
+const deleteRoom = async (slug) => db.query('DELETE FROM rooms WHERE slug = $1', [slug]);
+
 const getValidRooms = async () => db.query('SELECT * FROM rooms')
 
 const addPlayer = async (player) => db.query('INSERT INTO players (name) VALUES ($1) RETURNING *', [player])
+
+const insertRoom = async (slug) => db.query('INSERT INTO rooms (slug) VALUES ($1) RETURNING *', [slug]);
 
 
 module.exports = {
   db,
   getValidRooms,
-  addPlayer
+  addPlayer,
+  insertRoom,
+  getOldestRoom,
+  deleteRoom
 }
