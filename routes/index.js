@@ -1,11 +1,12 @@
 const express = require("express");
 const router = express.Router();
-const { getValidRooms, insertRoom, getOldestRoom, deleteRoom } = require('../db');
+const { getValidRooms, insertRoom, getOldestRoom, deleteRoom, insertPlayer, getPlayer } = require('../db');
 
 router.get("/", (req, res) => {
   res.send({ response: "I am alive" }).status(200);
 });
 
+// Creates a new room
 router.get("/create", async (req, res) => {
   const existingRoomSlugs = (await getValidRooms()).map(room => room.slug);
 
@@ -36,6 +37,25 @@ router.get("/create", async (req, res) => {
 
   await insertRoom(slug);
   res.send({ created: slug, total_rooms: numRooms }).status(200);
+});
+
+// Create a route that checks if a user exists
+router.get("/create/username", async (req, res) => {
+  const preferredUsername = req.query.username?.toLowerCase();
+
+  // Check if player exists in database
+  const existingPlayer = await getPlayer(preferredUsername);
+
+  // If there is no existingPlayer, add player to database
+  if (existingPlayer.length === 0) {
+    await insertPlayer(preferredUsername);
+    return res.send({ created: preferredUsername }).status(200);
+  }
+
+  // Otherwise, send back an error
+  res.send({ error: 'Username already exists', sent: preferredUsername }).status(404);
+
+  
 });
   
 

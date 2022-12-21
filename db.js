@@ -23,7 +23,9 @@ const deleteRoom = async (slug) => db.query('DELETE FROM rooms WHERE slug = $1',
 
 const getValidRooms = async () => db.query('SELECT * FROM rooms')
 
-const addPlayer = async (player) => db.query('INSERT INTO players (name) VALUES ($1) RETURNING *', [player])
+const insertPlayer = async (player) => db.query('INSERT INTO players (name) VALUES ($1) RETURNING *', [player])
+
+const getPlayer = async (name) => db.query('SELECT * FROM players WHERE name = $1', [name])
 
 const insertRoom = async (slug) => db.query('INSERT INTO rooms (slug) VALUES ($1) RETURNING *', [slug]);
 
@@ -31,8 +33,9 @@ const insertRoom = async (slug) => db.query('INSERT INTO rooms (slug) VALUES ($1
 module.exports = {
   db,
   getValidRooms,
-  addPlayer,
+  insertPlayer,
   insertRoom,
   getOldestRoom,
-  deleteRoom
+  deleteRoom,
+  getPlayer
 }
