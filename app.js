@@ -51,7 +51,7 @@ const startSocketServer = async () => {
       // socket.emit("guesses", puzzles[room].guesses);
       // socket.emit("scores", puzzles[room].scores);
 
-      // socket.emit("id", socket.id);
+      socket.emit("id", socket.id);
       // socket.emit("timestamp", puzzles[room].created_at);
       // console.log("Sending completed_at: ", puzzles[room].completed_at);
       // socket.emit("completed", puzzles[room].completed_at);
@@ -61,6 +61,8 @@ const startSocketServer = async () => {
         ...connectedClients[socket.id],
         ...{ room, name: "Anon" },
       };
+
+      // TODO: Add client to DB
 
       // Count clients in room
       let count = 0;
@@ -109,8 +111,6 @@ const startSocketServer = async () => {
 
       // TODO: Change input to guess, etc.
       if (type === "input") {
-        
-
         try {
           // TODO: Update DB here
           // db.updateGame(room, puzzles[room].guesses, puzzles[room].scores);
