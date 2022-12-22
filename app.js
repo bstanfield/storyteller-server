@@ -20,8 +20,6 @@ const io = socketIo(server, {
   },
 });
 
-const randomColors = ['red', 'green', 'blue'];
-let assignedColors = 0;
 let connectedClients = {};
 
 const startSocketServer = async () => {
@@ -33,12 +31,8 @@ const startSocketServer = async () => {
     console.log("New client: ", socket.id);
 
     // Assign to room and hand down board
-    socket.on("join", async (room) => {
-      // Reject invalid rooms
-      if (!validRooms.includes(room)) {
-        return socket.emit("reject", "invalid room");
-      }
-
+    socket.on("join", async (context) => {
+      const { player_id, room } = context;
       // TODO: If room doesn't have a deck yet, create one
 
       // Send stuff down to new client
@@ -59,47 +53,33 @@ const startSocketServer = async () => {
       // Add client to list of clients
       connectedClients[socket.id] = {
         ...connectedClients[socket.id],
-        ...{ room, name: "Anon" },
+        ...{ room, name: "Anon", player_id },
       };
 
       // TODO: Add client to DB
 
       // Count clients in room
-      let count = 0;
+      let players = [];
+      console.log('connected clients: ', connectedClients);
       for (const [key, value] of Object.entries(connectedClients)) {
         if (value.room === room) {
-          count++;
+          players.push(value);
         }
       }
 
-      // Tell everyone in the room about the new client
-      io.to(room).emit("newPlayer", count);
-    });
-
-    socket.on("name", (name) => {
-      if (name) {
-        console.log(socket.id, " name is ", name);
-        connectedClients[socket.id] = {
-          ...connectedClients[socket.id],
-          ...{ name },
-        };
-      }
+      // Tell everyone who is in the room
+      console.log('players: ', players);
+      io.to(room).emit("players", players);
     });
 
     // Room agnostic code
-    // Assigns a color for the client
-    // TODO: Convert from color to avatar
+    // TODO: Add avatar preference
     connectedClients[socket.id] = {
       ...connectedClients[socket.id],
-      ...{ color: randomColors[assignedColors] },
     };
-    assignedColors++;
-
-    if (assignedColors >= randomColors.length) {
-      assignedColors = 0;
-    }
 
     socket.on("message", async (data) => {
+      // socket.emit("Hello world", "Hello world!");
       const { room } = connectedClients[socket.id];
       const { name, type, value } = data;
 
