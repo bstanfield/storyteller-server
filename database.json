@@ -1,8 +1,5 @@
 {
     "dev": {
-        "driver": "pg",
-        "user": "ben",
-        "host": "localhost",
-        "database": "storyteller"
+        "ENV": "DATABASE_URL"
     }
 }
