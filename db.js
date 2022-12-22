@@ -21,25 +21,26 @@ const db = pgp({
 const insertPlayer = async (player) => db.query('INSERT INTO players (name) VALUES ($1) RETURNING *', [player])
 const getPlayer = async (player_id) => db.query('SELECT * FROM players WHERE player_id = $1', [player_id])
 const updatePlayer = async (field, value, name) => db.query(`UPDATE players SET ${field} = $1 WHERE name = $2`, [value, name])
-
-// Rooms
-const insertRoom = async (slug) => db.query('INSERT INTO rooms (slug) VALUES ($1) RETURNING *', [slug]);
-const deleteRoom = async (slug) => db.query('DELETE FROM rooms WHERE slug = $1', [slug]);
-const getValidRooms = async () => db.query('SELECT * FROM rooms')
-const getOldestRoom = async () => db.query('SELECT * FROM rooms ORDER BY created_at ASC LIMIT 1');
+const getPlayersInGame = async (game_slug) => db.query('SELECT * FROM player_games JOIN players ON player_games.player_id = players.player_id WHERE game_slug = $1', [game_slug])
 
 // Games
-const insertGame = async (room_slug) => db.query('INSERT INTO games (room_slug) VALUES ($1) RETURNING *', [room_slug]);
+const insertGame = async (slug) => db.query('INSERT INTO games (slug) VALUES ($1) RETURNING *', [slug]);
+const deleteGame = async (slug) => db.query('DELETE FROM games WHERE slug = $1', [slug]);
+const getValidGames = async () => db.query('SELECT * FROM games')
+const getOldestGame = async () => db.query('SELECT * FROM games ORDER BY created_at ASC LIMIT 1');
 
+const addPlayerToGame = async (player_id, game_slug) => db.query('INSERT INTO player_games (player_id, game_slug) VALUES ($1, $2) RETURNING *', [player_id, game_slug]);
 
 module.exports = {
   db,
-  getValidRooms,
+  getValidGames,
   insertPlayer,
-  insertRoom,
-  getOldestRoom,
-  deleteRoom,
+  insertGame,
+  getOldestGame,
+  deleteGame,
   getPlayer,
   updatePlayer,
-  insertGame
+  insertGame,
+  addPlayerToGame,
+  getPlayersInGame,
 }
