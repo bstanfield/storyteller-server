@@ -1,7 +1,7 @@
 const express = require("express");
 const http = require("http");
 const socketIo = require("socket.io");
-const { getValidRooms } = require("./db");
+const { getValidRooms, insertGame } = require("./db");
 
 const port = process.env.PORT || 4001;
 const index = require("./routes/index");
@@ -68,7 +68,6 @@ const startSocketServer = async () => {
       }
 
       // Tell everyone who is in the room
-      console.log('players: ', players);
       io.to(room).emit("players", players);
     });
 
@@ -78,8 +77,21 @@ const startSocketServer = async () => {
       ...connectedClients[socket.id],
     };
 
+    // When a client starts game, add to db and emit to all clients in room
+    socket.on("start game", async (data) => {
+      const { room } = data;
+      
+      // Add new game to db
+      await insertGame(room);
+
+      // Emit to all clients in room that game has started
+      io.in(room).emit("start", true);
+    });
+
+    
+    
+    
     socket.on("message", async (data) => {
-      // socket.emit("Hello world", "Hello world!");
       const { room } = connectedClients[socket.id];
       const { name, type, value } = data;
 
@@ -127,14 +139,17 @@ const startSocketServer = async () => {
         const room = clientToDelete.room;
         delete connectedClients[socket.id];
 
-        // Recount clients in room
-        let count = 0;
+        // Count clients in room
+        let players = [];
+        console.log('connected clients: ', connectedClients);
         for (const [key, value] of Object.entries(connectedClients)) {
           if (value.room === room) {
-            count++;
+            players.push(value);
           }
         }
-        io.to(room).emit("newPlayer", count);
+
+      // Tell everyone who is in the room
+      io.to(room).emit("players", players);
       }
     });
   });

@@ -28,8 +28,8 @@ const deleteRoom = async (slug) => db.query('DELETE FROM rooms WHERE slug = $1',
 const getValidRooms = async () => db.query('SELECT * FROM rooms')
 const getOldestRoom = async () => db.query('SELECT * FROM rooms ORDER BY created_at ASC LIMIT 1');
 
-
-
+// Games
+const insertGame = async (room_slug) => db.query('INSERT INTO games (room_slug) VALUES ($1) RETURNING *', [room_slug]);
 
 
 module.exports = {
@@ -40,5 +40,6 @@ module.exports = {
   getOldestRoom,
   deleteRoom,
   getPlayer,
-  updatePlayer
+  updatePlayer,
+  insertGame
 }
