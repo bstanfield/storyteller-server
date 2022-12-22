@@ -1,0 +1,8 @@
+{
+    "dev": {
+        "driver": "pg",
+        "user": "ben",
+        "host": "localhost",
+        "database": "storyteller"
+    }
+}
