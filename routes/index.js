@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { getValidRooms, insertRoom, getOldestRoom, deleteRoom, insertPlayer, getPlayer } = require('../db');
+const { getValidRooms, insertRoom, getOldestRoom, deleteRoom, insertPlayer, getPlayer, updatePlayer } = require('../db');
 
 router.get("/", (req, res) => {
   res.send({ response: "I am alive" }).status(200);
@@ -39,23 +39,40 @@ router.get("/create", async (req, res) => {
   res.send({ created: slug, total_rooms: numRooms }).status(200);
 });
 
-// Create a route that checks if a user exists
+// Create a route that checks if a player exists
+router.get("/session", async (req, res) => {
+  const player_id = req.query.player_id;
+  
+  // Check if player exists in database
+  const existingPlayer = await getPlayer(player_id);
+  if (existingPlayer.length === 0) {
+    return res.send({ error: 'Player does not exist', sent: player_id }).status(404);
+  } else {
+    return res.send({ sent: player_id }).status(200);
+  }
+});
+
+// Create a route that creates a new player
 router.get("/create/username", async (req, res) => {
-  const preferredUsername = req.query.username?.toLowerCase();
+  const username = req.query.username?.toLowerCase();
+  const newPlayer = (await insertPlayer(username))[0];
+  res.send({ created: preferredUsername, player_id: newPlayer.player_id }).status(200);
+});
+
+// Create a route that adds an avatar to a user
+router.get("/create/avatar", async (req, res) => {
+  const username = req.query.username?.toLowerCase();
+  const avatar = req.query.avatar;
 
   // Check if player exists in database
-  const existingPlayer = await getPlayer(preferredUsername);
-
-  // If there is no existingPlayer, add player to database
+  const existingPlayer = await getPlayer(username);
   if (existingPlayer.length === 0) {
-    await insertPlayer(preferredUsername);
-    return res.send({ created: preferredUsername }).status(200);
+    return res.send({ error: 'Username does not exist', sent: username }).status(404);
   }
 
-  // Otherwise, send back an error
-  res.send({ error: 'Username already exists', sent: preferredUsername }).status(404);
-
-  
+  // If there is an existingPlayer, add avatar to database
+  await updatePlayer('avatar_id', avatar, username);
+  res.send({ created: avatar, username }).status(200);
 });
   
 
