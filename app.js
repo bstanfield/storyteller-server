@@ -1,7 +1,7 @@
 const express = require("express");
 const http = require("http");
 const socketIo = require("socket.io");
-const { getValidGames, insertGame } = require("./db");
+const { getPlayersInGame, insertGame } = require("./db");
 
 const port = process.env.PORT || 4001;
 const index = require("./routes/index");
@@ -24,8 +24,6 @@ let connectedClients = {};
 
 const startSocketServer = async () => {
   io.on("connection", async (socket) => {
-    console.log("New client: ", socket.id);
-
     // Assign to game and hand down board
     socket.on("join", async (context) => {
       const { player_id, game } = context;
@@ -35,32 +33,12 @@ const startSocketServer = async () => {
       console.log(socket.id, "joining ", game);
       socket.join(game);
 
-
-      // TODO: Emit pertinent data to client
-      // socket.emit("board", puzzles[game].board);
-      // socket.emit("guesses", puzzles[game].guesses);
-      // socket.emit("scores", puzzles[game].scores);
-
       socket.emit("id", socket.id);
-      // socket.emit("timestamp", puzzles[game].created_at);
-      // console.log("Sending completed_at: ", puzzles[game].completed_at);
-      // socket.emit("completed", puzzles[game].completed_at);
 
-      // Add client to list of clients
-      connectedClients[socket.id] = {
-        ...connectedClients[socket.id],
-        ...{ game, name: "Anon", player_id },
-      };
-
-      // TODO: Add client to DB
-
-      // Count clients in game
-      let players = [];
-      for (const [key, value] of Object.entries(connectedClients)) {
-        if (value.game === game) {
-          players.push(value);
-        }
-      }
+      // Get players in game from db 
+      console.log('Getting players in: ', game);
+      const players = await getPlayersInGame(game);
+      console.log('Players in game: ', players);
 
       // Tell everyone who is in the game
       io.to(game).emit("players", players);
@@ -73,11 +51,8 @@ const startSocketServer = async () => {
     };
 
     // When a client starts game, add to db and emit to all clients in game
-    socket.on("start game", async (data) => {
+    socket.on("start", async (data) => {
       const { game } = data;
-      
-      // Add new game to db
-      await insertGame(game);
 
       // Emit to all clients in game that game has started
       io.in(game).emit("start", true);
@@ -143,7 +118,7 @@ const startSocketServer = async () => {
         }
 
       // Tell everyone who is in the game
-      io.to(game).emit("players", players);
+      // io.to(game).emit("players", players);
       }
     });
   });
