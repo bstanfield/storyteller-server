@@ -56,7 +56,6 @@ const startSocketServer = async () => {
 
       // Count clients in game
       let players = [];
-      console.log('connected clients: ', connectedClients);
       for (const [key, value] of Object.entries(connectedClients)) {
         if (value.game === game) {
           players.push(value);
@@ -137,7 +136,6 @@ const startSocketServer = async () => {
 
         // Count clients in game
         let players = [];
-        console.log('connected clients: ', connectedClients);
         for (const [key, value] of Object.entries(connectedClients)) {
           if (value.game === game) {
             players.push(value);
