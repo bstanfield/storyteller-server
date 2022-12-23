@@ -30,9 +30,14 @@ const getValidGames = async () => db.query('SELECT * FROM games')
 const getOldestGame = async () => db.query('SELECT * FROM games ORDER BY created_at ASC LIMIT 1');
 
 const addPlayerToGame = async (player_id, game_slug) => db.query('INSERT INTO player_games (player_id, game_slug) VALUES ($1, $2) RETURNING *', [player_id, game_slug]);
+const getPlayerInGame = async (player_id, game_slug) => db.query('SELECT * FROM player_games WHERE player_id = $1 AND game_slug = $2', [player_id, game_slug]);
 
 // Avatars
 const getAvatars = async () => db.query('SELECT * FROM avatars');
+
+// Rounds
+const insertRound = async (game_slug, storyteller_id) => db.query('INSERT INTO rounds (game_slug, player_storyteller) VALUES ($1, $2) RETURNING *', [game_slug, storyteller_id]);
+const getLatestRound = async (game_slug) => db.query('SELECT * FROM rounds WHERE game_slug = $1 ORDER BY created_at DESC LIMIT 1', [game_slug]);
 
 module.exports = {
   db,
@@ -47,4 +52,7 @@ module.exports = {
   addPlayerToGame,
   getPlayersInGame,
   getAvatars,
+  insertRound,
+  getPlayerInGame,
+  getLatestRound
 }
