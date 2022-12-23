@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { getValidGames, insertGame, getOldestGame, deleteGame, insertPlayer, getPlayer, updatePlayer, addPlayerToGame, getPlayersInGame } = require('../db');
+const { getValidGames, insertGame, getOldestGame, deleteGame, insertPlayer, getPlayer, updatePlayer, addPlayerToGame, getPlayersInGame, getAvatars } = require('../db');
 
 router.get("/", (req, res) => {
   res.send({ response: "I am alive" }).status(200);
@@ -67,18 +67,18 @@ router.get("/create/username", async (req, res) => {
 
 // Create a route that adds an avatar to a user
 router.get("/create/avatar", async (req, res) => {
-  const username = req.query.username?.toLowerCase();
-  const avatar = req.query.avatar;
-
-  // Check if player exists in database
-  const existingPlayer = await getPlayer(username);
-  if (existingPlayer.length === 0) {
-    return res.send({ error: 'Username does not exist', sent: username }).status(404);
-  }
+  const playerId = req.query.player_id;
+  const avatar = req.query.avatar_id;
 
   // If there is an existingPlayer, add avatar to database
-  await updatePlayer('avatar_id', avatar, username);
-  res.send({ created: avatar, username }).status(200);
+  await updatePlayer('avatar_id', avatar, playerId);
+  res.send({ created: avatar, playerId }).status(200);
+});
+
+// Create a route that gets avatars
+router.get("/avatars", async (req, res) => {
+  const avatars = await getAvatars();
+  res.send({ avatars }).status(200);
 });
 
 router.get("/game/add-player", async (req, res) => {
@@ -111,7 +111,6 @@ router.get("/game/players", async (req, res) => {
   console.log('Getting players in game: ', game);
 
   const players = await getPlayersInGame(game);
-  console.log('Players in game: ', players);
   res.send({ players }).status(200);
 });
   
