@@ -119,7 +119,7 @@ const startSocketServer = async () => {
     socket.on("round", async (data) => {
       const { game } = data;
       const round = await handleRound(game);
-      io.in(game).emit("round", round);
+      io.in(game).emit("round", camelCase(round));
     });
 
     // A client will let the server know when a new round is requested
@@ -135,7 +135,7 @@ const startSocketServer = async () => {
         io.to(player.id).emit("hand", updatedPlayerHand);
       });
 
-      io.in(game).emit("round", round);
+      io.in(game).emit("round", camelCase(round));
     });
 
     socket.on("message", async (data) => {
