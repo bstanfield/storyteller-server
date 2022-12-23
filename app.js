@@ -26,13 +26,14 @@ let connectedClients = {};
 // Write a function that takes in a hand and ensures that it always has 7 cards in it
 // Todo: Need to be able to shuffle deck when out of cards
 const handleHand = async (hand, player_game_id, newRound) => {
-  let idealHandSize = 7;
+  let idealHandSize = 6;
   const cardsInDb = await db.getCards();
   // Includes cards that have been played by the player
   const cardsInHand = hand.map(card => {
     return {
       card_id: card.card_id,
       played_at: card.played_at,
+      imgix_path: cardsInDb.find(cardInDb => cardInDb.id === card.card_id).imgix_path
     }
   });
   const cardsInHandUnplayed = cardsInHand.filter(card => card.played_at === null);
@@ -46,8 +47,7 @@ const handleHand = async (hand, player_game_id, newRound) => {
     randomCards.map(card => db.insertHandCard(player_game_id, card.id));
     return randomCards;
   } else if (newRound && cardsInHandUnplayed.length < idealHandSize) {
-    // If newRound, and there are less than 7 cards in hand, add cards until 7
-    console.log('New round! Adding cards to hand for player ', player_game_id);
+    // If newRound, and there are less than 7 cards in hand, add cards until 6
     const cardsToAdd = idealHandSize - cardsInHand.length;
     const randomCards = [];
     for (let i = 0; i < cardsToAdd; i++) {
@@ -55,7 +55,6 @@ const handleHand = async (hand, player_game_id, newRound) => {
       randomCards.push(cardsInDb[randomIndex]);
     }
     randomCards.map(card => db.insertHandCard(player_game_id, card.id));
-    console.log('adding in ', randomCards, ' to hand for player ', player_game_id);
     return [...cardsInHandUnplayed, ...randomCards];
   } else {
     return cardsInHandUnplayed; // Only return cards that have not been played yet
