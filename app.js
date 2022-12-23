@@ -94,7 +94,7 @@ const startSocketServer = async () => {
       const [playerInGame] = await db.getPlayerInGame(player_id, game);
       const playerHand = await db.getHand(playerInGame.id);
       const updatedPlayerHand = await handleHand(playerHand, playerInGame.id, false);
-      socket.emit("hand", updatedPlayerHand);
+      socket.emit("hand", camelCase(updatedPlayerHand));
       
       // Tell everyone who is in the game
       const players = await db.getPlayersInGame(game);
@@ -132,7 +132,7 @@ const startSocketServer = async () => {
       players.map(async (player) => {
         const playerHand = await db.getHand(player.id);
         const updatedPlayerHand = await handleHand(playerHand, player.id, true);
-        io.to(player.id).emit("hand", updatedPlayerHand);
+        io.to(player.id).emit("hand", camelCase(updatedPlayerHand));
       });
 
       io.in(game).emit("round", camelCase(round));
