@@ -91,6 +91,7 @@ const startSocketServer = async () => {
 
       // Deal in the newly joined player
       const [playerInGame] = await db.getPlayerInGame(player_id, game);
+      console.log('player: ', playerInGame);
       const playerHand = await db.getHand(playerInGame.id);
       const updatedPlayerHand = await handleHand(playerHand, playerInGame.id, false);
       socket.emit("hand", updatedPlayerHand);
@@ -137,44 +138,13 @@ const startSocketServer = async () => {
       io.in(game).emit("round", camelCase(round));
     });
 
-    socket.on("message", async (data) => {
-      const { game } = connectedClients[socket.id];
-      const { name, type, value } = data;
-
-      // Catch for out-of-sync name
-      if (name !== connectedClients[socket.id].name) {
-        console.log(name, "is not ", connectedClients[socket.id].name);
-        connectedClients[socket.id].name = name;
-      }
-
-      // TODO: Change input to guess, etc.
-      if (type === "input") {
-        try {
-          // TODO: Update DB here
-          // db.updateGame(game, puzzles[game].guesses, puzzles[game].scores);
-        } catch (err) {
-          console.log("ERROR: ", err);
-        }
-      }
-
-      // TODO: Handle new game request
-      if (type === "newPuzzle") {
-        // Loading state for everyone in game
-        io.in(game).emit("loading", true);
-
-        try {
-          // TODO: Insert into DB here
-        } catch (err) {
-          console.log("ERROR: ", err);
-        }
-
-        // io.in(game).emit("guesses", puzzles[game].guesses);
-        // io.in(game).emit("board", puzzles[game].board);
-        // io.in(game).emit("timestamp", puzzles[game].created_at);
-        // io.in(game).emit("completed", puzzles[game].completed_at); // might still be null -- that's OK
-
-        io.in(game).emit("loading", false);
-      }
+    socket.on("clue", async (data) => { 
+      const { game, clue } = data;
+    
+      const [round] = await db.getRounds(game);
+      console.log('Inserting clue ', clue, ' for round ', round.id, ' in game ', game);
+      await db.addClueToRound(round.id, clue);
+      io.in(game).emit("clue", clue);
     });
 
     socket.on("disconnect", () => {
