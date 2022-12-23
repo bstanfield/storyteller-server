@@ -36,7 +36,7 @@ const getAvatars = async () => db.query('SELECT * FROM avatars');
 
 // Rounds
 const insertRound = async (game_slug, storyteller_id) => db.query('INSERT INTO rounds (game_slug, player_storyteller) VALUES ($1, $2) RETURNING *', [game_slug, storyteller_id]);
-const getRounds = async (game_slug) => db.query('SELECT * FROM rounds WHERE game_slug = $1 ORDER BY created_at DESC', [game_slug]);
+const getRounds = async (game_slug) => db.query('SELECT * FROM rounds WHERE game_slug = $1 ORDER BY created_at ASC', [game_slug]);
 
 module.exports = {
   db,
