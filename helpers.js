@@ -5,7 +5,6 @@ const camelCase = (obj) => {
     const newKey = key.replace(/([-_][a-z])/gi, ($1) => {
       return $1.toUpperCase().replace("-", "").replace("_", "");
     });
-    console.log('key: ', key);
     if (value === Object(value)) {
       acc[newKey] = camelCase(value);
     } else {
@@ -13,11 +12,12 @@ const camelCase = (obj) => {
     }
     return acc;
   }, {});
-
-  console.log('output: ', output);
   return output;
 }
 
+const pickStoryteller = (players, roundNumber) => players[roundNumber % players.length];
+
 module.exports = {
   camelCase,
+  pickStoryteller,
 };

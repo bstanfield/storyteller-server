@@ -1,12 +1,12 @@
 const express = require("express");
 const http = require("http");
 const socketIo = require("socket.io");
-const { getPlayersInGame, insertRound, getPlayerInGame, getLatestRound } = require("./db");
+const { getPlayersInGame, insertRound, getPlayerInGame, getRounds } = require("./db");
 
 const port = process.env.PORT || 4001;
 const index = require("./routes/index");
 const cors = require("cors");
-const { camelCase } = require("./helpers");
+const { camelCase, pickStoryteller } = require("./helpers");
 
 const app = express();
 app.use(cors());
@@ -55,31 +55,24 @@ const startSocketServer = async () => {
       io.in(game).emit("start", true);
     });
 
-    // Every client will request "round" data to update their state
+    // Every client will listen for "round" data to update their state
     socket.on("round", async (data) => { 
       const { game } = data;
-
-      // First, check for active round in game
-      const latestRound = await getLatestRound(game);
-      if (latestRound.length > 0 && latestRound.completed_at === null) {
+      const rounds = await getRounds(game);
+      const latestRound = rounds[rounds.length - 1];
+      if (latestRound?.completed_at === null) {
+        // If there is a round, and it is not completed, send it
         io.in(game).emit("round", camelCase(latestRound));
       } else {
+        // If there is no round, or the round is completed, create a new round
         const players = await getPlayersInGame(game);
-        console.log('player: ', players[0].player_id);
-        // TODO: *Randomly* select a storyteller
-        const storyteller = (await getPlayerInGame(players[0].player_id, game))[0];
-        const [round] = await insertRound(game, storyteller.player_id);
-
-        
+        const playerIds = players.map((player) => player.player_id);
+        const storyteller = pickStoryteller(playerIds, rounds.length);
+        const [round] = await insertRound(game, storyteller);
         io.in(game).emit("round", camelCase(round));
       }
-
-
     });
 
-    
-    
-    
     socket.on("message", async (data) => {
       const { game } = connectedClients[socket.id];
       const { name, type, value } = data;
