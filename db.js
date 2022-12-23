@@ -38,6 +38,14 @@ const getAvatars = async () => db.query('SELECT * FROM avatars');
 const insertRound = async (game_slug, storyteller_id) => db.query('INSERT INTO rounds (game_slug, player_storyteller) VALUES ($1, $2) RETURNING *', [game_slug, storyteller_id]);
 const getRounds = async (game_slug) => db.query('SELECT * FROM rounds WHERE game_slug = $1 ORDER BY created_at ASC', [game_slug]);
 
+// Hands
+const getHand = async (player_game_id) => db.query('SELECT * FROM hands JOIN player_games ON player_games.id = hands.player_game_id WHERE player_game_id = $1', [player_game_id]);
+const insertHandCard = async (player_game_id, card_id) => db.query('INSERT INTO hands (player_game_id, card_id) VALUES ($1, $2)', [player_game_id, card_id]);
+const updateHandCard = async (player_game_id, card_id) => db.query('UPDATE hands SET card_id = $1 WHERE player_game_id = $2', [card_id, player_game_id]);
+
+// Cards
+const getCards = async () => db.query('SELECT * FROM cards');
+
 module.exports = {
   db,
   getValidGames,
@@ -53,5 +61,9 @@ module.exports = {
   getAvatars,
   insertRound,
   getPlayerInGame,
-  getRounds
+  getRounds,
+  getHand,
+  insertHandCard,
+  updateHandCard,
+  getCards
 }

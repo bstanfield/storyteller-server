@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { getValidGames, insertGame, getOldestGame, deleteGame, insertPlayer, getPlayer, updatePlayer, addPlayerToGame, getPlayersInGame, getAvatars } = require('../db');
+const db = require("../db");
 
 router.get("/", (req, res) => {
   res.send({ response: "I am alive" }).status(200);
@@ -9,7 +9,7 @@ router.get("/", (req, res) => {
 // Creates a new game
 router.get("/create", async (req, res) => {
   console.log("New game request!");
-  const existingGameSlugs = (await getValidGames()).map(game => game.slug);
+  const existingGameSlugs = (await db.getValidGames()).map(game => game.slug);
 
   const generateRandomSlug = (len) => {
     const characters = 'abcdefghijkmnpqrstuvwxyz1234567890';
@@ -34,11 +34,11 @@ router.get("/create", async (req, res) => {
   // if there are more than 1,000 games, delete the oldest game
   if (numGames > 1000) {
     console.log('Too many games!');
-    const oldestGame = (await getOldestGame())[0];
-    await deleteGame(oldestGame.slug);
+    const oldestGame = (await db.getOldestGame())[0];
+    await db.deleteGame(oldestGame.slug);
   }
 
-  await insertGame(slug);
+  await db.insertGame(slug);
 
   console.log('Inserted game!');
   res.send({ slug, total_games: numGames }).status(200);
@@ -49,7 +49,7 @@ router.get("/session", async (req, res) => {
   const player_id = req.query.player_id;
   
   // Check if player exists in database
-  const existingPlayer = await getPlayer(player_id);
+  const existingPlayer = await db.getPlayer(player_id);
   if (existingPlayer.length === 0) {
     return res.send({ error: 'Player does not exist', sent: player_id }).status(404);
   } else {
@@ -61,7 +61,7 @@ router.get("/session", async (req, res) => {
 router.get("/create/username", async (req, res) => {
   console.log('Creating new player ', req.query.username);
   const username = req.query.username?.toLowerCase();
-  const newPlayer = (await insertPlayer(username))[0];
+  const newPlayer = (await db.insertPlayer(username))[0];
   res.send({ username, player_id: newPlayer.player_id }).status(200);
 });
 
@@ -71,13 +71,13 @@ router.get("/create/avatar", async (req, res) => {
   const avatar = req.query.avatar_id;
 
   // If there is an existingPlayer, add avatar to database
-  await updatePlayer('avatar_id', avatar, playerId);
+  await db.updatePlayer('avatar_id', avatar, playerId);
   res.send({ created: avatar, playerId }).status(200);
 });
 
 // Create a route that gets avatars
 router.get("/avatars", async (req, res) => {
-  const avatars = await getAvatars();
+  const avatars = await db.getAvatars();
   res.send({ avatars }).status(200);
 });
 
@@ -89,14 +89,14 @@ router.get("/game/add-player", async (req, res) => {
 
   try {
     // Get players in game
-    const players = await getPlayersInGame(game);
+    const players = await db.getPlayersInGame(game);
     // Check if player is already in game
     if (players.map(player => player.player_id).includes(player_id)) {
       console.log('Player already in game');
       return res.send({ error: 'Player already in game', sent: player_id }).status(400);
     } else {
       console.log('Player not in game');
-      await addPlayerToGame(player_id, game);
+      await db.addPlayerToGame(player_id, game);
     }
   } catch (err) {
     console.log('Error adding player to game: ', err);
@@ -110,7 +110,7 @@ router.get("/game/players", async (req, res) => {
   const game = req.query.game_slug;
   console.log('Getting players in game: ', game);
 
-  const players = await getPlayersInGame(game);
+  const players = await db.getPlayersInGame(game);
   res.send({ players }).status(200);
 });
   
@@ -120,7 +120,7 @@ router.get("/secret", async (req, res) => {
   const game = req.query.game;
   console.log('User is trying to access game: ', game);
 
-  const existingGameSlugs = (await getValidGames()).map(game => game.slug);
+  const existingGameSlugs = (await db.getValidGames()).map(game => game.slug);
 
   if (existingGameSlugs.includes(game)) {
     return res.send({ sent: game }).status(200);
