@@ -25,7 +25,7 @@ let connectedClients = {};
 
 // Write a function that takes in a hand and ensures that it always has 7 cards in it
 // Todo: Need to be able to shuffle deck when out of cards
-const handleHand = async (hand, player_game_id) => {
+const handleHand = async (hand, player_game_id, newRound) => {
   let idealHandSize = 7;
   const cardsInDb = await db.getCards();
   // Includes cards that have been played by the player
@@ -35,7 +35,8 @@ const handleHand = async (hand, player_game_id) => {
       played_at: card.played_at,
     }
   });
-  if (cardsInHand.length === 0) {
+  const cardsInHandUnplayed = cardsInHand.filter(card => card.played_at === null);
+  if (cardsInHandUnplayed.length === 0) {
     // Get 7 random cards from cardsInDb
     const randomCards = [];
     for (let i = 0; i < idealHandSize; i++) {
@@ -44,8 +45,36 @@ const handleHand = async (hand, player_game_id) => {
     }
     randomCards.map(card => db.insertHandCard(player_game_id, card.id));
     return randomCards;
+  } else if (newRound && cardsInHandUnplayed.length < idealHandSize) {
+    // If newRound, and there are less than 7 cards in hand, add cards until 7
+    console.log('New round! Adding cards to hand for player ', player_game_id);
+    const cardsToAdd = idealHandSize - cardsInHand.length;
+    const randomCards = [];
+    for (let i = 0; i < cardsToAdd; i++) {
+      const randomIndex = Math.floor(Math.random() * cardsInDb.length);
+      randomCards.push(cardsInDb[randomIndex]);
+    }
+    randomCards.map(card => db.insertHandCard(player_game_id, card.id));
+    console.log('adding in ', randomCards, ' to hand for player ', player_game_id);
+    return [...cardsInHandUnplayed, ...randomCards];
   } else {
-    return cardsInHand.filter(card => card.played_at === null); // Only return cards that have not been played yet
+    return cardsInHandUnplayed; // Only return cards that have not been played yet
+  }
+}
+
+const handleRound = async (game) => {
+  const rounds = await db.getRounds(game);
+  const latestRound = rounds[rounds.length - 1];
+  if (latestRound?.completed_at === null) {
+    // If there is a round, and it is not completed, send it
+    return camelCase(latestRound);
+  } else {
+    // If there is no round, or the round is completed, create a new round
+    const players = await db.getPlayersInGame(game);
+    const playerIds = players.map((player) => player.player_id);
+    const storyteller = pickStoryteller(playerIds, rounds.length);
+    const [round] = await db.insertRound(game, storyteller);
+    return camelCase(round);
   }
 }
 
@@ -64,7 +93,7 @@ const startSocketServer = async () => {
       // Deal in the newly joined player
       const [playerInGame] = await db.getPlayerInGame(player_id, game);
       const playerHand = await db.getHand(playerInGame.id);
-      const updatedPlayerHand = await handleHand(playerHand, playerInGame.id);
+      const updatedPlayerHand = await handleHand(playerHand, playerInGame.id, false);
       socket.emit("hand", updatedPlayerHand);
       
       // Tell everyone who is in the game
@@ -87,21 +116,26 @@ const startSocketServer = async () => {
     });
 
     // Every client will listen for "round" data to update their state
-    socket.on("round", async (data) => { 
+    socket.on("round", async (data) => {
       const { game } = data;
-      const rounds = await db.getRounds(game);
-      const latestRound = rounds[rounds.length - 1];
-      if (latestRound?.completed_at === null) {
-        // If there is a round, and it is not completed, send it
-        io.in(game).emit("round", camelCase(latestRound));
-      } else {
-        // If there is no round, or the round is completed, create a new round
-        const players = await db.getPlayersInGame(game);
-        const playerIds = players.map((player) => player.player_id);
-        const storyteller = pickStoryteller(playerIds, rounds.length);
-        const [round] = await db.insertRound(game, storyteller);
-        io.in(game).emit("round", camelCase(round));
-      }
+      const round = await handleRound(game);
+      io.in(game).emit("round", round);
+    });
+
+    // A client will let the server know when a new round is requested
+    socket.on("new round", async (data) => {
+      const { game } = data;
+      const round = await handleRound(game);
+
+      // For each player in game, deal in additional cards
+      const players = await db.getPlayersInGame(game);
+      players.map(async (player) => {
+        const playerHand = await db.getHand(player.id);
+        const updatedPlayerHand = await handleHand(playerHand, player.id, true);
+        io.to(player.id).emit("hand", updatedPlayerHand);
+      });
+
+      io.in(game).emit("round", round);
     });
 
     socket.on("message", async (data) => {
