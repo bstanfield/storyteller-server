@@ -38,16 +38,16 @@ const getDeck = async (game) => {
     ));
   
   // Get all cards not in player hands
-  const cardsInDb = await db.getCards();
+  const deck = await db.getCards();
   const cardsInHands = playerHands.map(player => player.hand).flat();
-  const remainingCardsInDeck = cardsInDb.filter(card => !cardsInHands.find(cardInHand => cardInHand.card_id === card.id));
+  const remainingCardsInDeck = deck.filter(card => !cardsInHands.find(cardInHand => cardInHand.card_id === card.id));
   console.log('Remaining cards in deck: ', remainingCardsInDeck.length);
   return remainingCardsInDeck;
 }
 
 // Write a function that takes in a hand and ensures that it always has 7 cards in it
 // Todo: Need to be able to shuffle deck when out of cards
-const handleHand = async (hand, player_game_id, newRound) => {
+const handleHand = async (hand, player_game_id, newRound, deck) => {
   let idealHandSize = 6;
   const cardsInDb = await db.getCards();
   
@@ -61,16 +61,16 @@ const handleHand = async (hand, player_game_id, newRound) => {
   });
   const cardsInHandUnplayed = cardsInHand.filter(card => card.played_at === null);
   if (cardsInHandUnplayed.length === 0) {
-    // Get 7 random cards from cardsInDb
+    // Get 7 random cards from deck
     const randomCards = [];
     for (let i = 0; i < idealHandSize; i++) {
       let randomIndices = [];
-      let randomIndex = Math.floor(Math.random() * cardsInDb.length);
+      let randomIndex = Math.floor(Math.random() * deck.length);
       // Keep cycling until you get a non-duplicate index
       while (randomIndices.includes(randomIndex)) {
-        randomIndex = Math.floor(Math.random() * cardsInDb.length);
+        randomIndex = Math.floor(Math.random() * deck.length);
       }
-      randomCards.push(cardsInDb[randomIndex]);
+      randomCards.push(deck[randomIndex]);
     }
     randomCards.map(card => db.insertHandCard(player_game_id, card.id));
     return randomCards;
@@ -80,8 +80,8 @@ const handleHand = async (hand, player_game_id, newRound) => {
     const cardsToAdd = idealHandSize - cardsInHand.length;
     const randomCards = [];
     for (let i = 0; i < cardsToAdd; i++) {
-      const randomIndex = Math.floor(Math.random() * cardsInDb.length);
-      randomCards.push(cardsInDb[randomIndex]);
+      const randomIndex = Math.floor(Math.random() * deck.length);
+      randomCards.push(deck[randomIndex]);
     }
     randomCards.map(card => db.insertHandCard(player_game_id, card.id));
     return [...cardsInHandUnplayed, ...randomCards];
@@ -95,7 +95,6 @@ const handleRound = async (game) => {
   const latestRound = rounds[rounds.length - 1];
   if (latestRound?.completed_at === null) {
     const [storyteller] = await db.getPlayer(latestRound.player_storyteller);
-    console.log('returning: ', { storyteller, ...latestRound });
     return camelCase({ storyteller, ...latestRound });
   } else {
     // If there is no round, or the round is completed, create a new round
@@ -104,7 +103,6 @@ const handleRound = async (game) => {
     const storyteller = pickStoryteller(playerIds, rounds.length);
     const storytellerObj = players.find((player) => player.player_id === storyteller);
     const [round] = await db.insertRound(game, storyteller);
-    console.log('returning: ', { storyteller: storytellerObj, ...round });
     return camelCase({ storyteller: storytellerObj, ...round });
   }
 }
@@ -126,7 +124,7 @@ const startSocketServer = async () => {
       // Deal in the newly joined player
       const [playerInGame] = await db.getPlayerInGame(player_id, game);
       const playerHand = await db.getHand(playerInGame.id);
-      const updatedPlayerHand = await handleHand(playerHand, playerInGame.id, false);
+      const updatedPlayerHand = await handleHand(playerHand, playerInGame.id, false, deck);
       socket.emit("hand", updatedPlayerHand);
       
       // Tell everyone who is in the game
@@ -160,11 +158,13 @@ const startSocketServer = async () => {
       const { game } = data;
       const round = await handleRound(game);
 
+      const deck = await getDeck(game);
+
       // For each player in game, deal in additional cards
       const players = await db.getPlayersInGame(game);
       players.map(async (player) => {
         const playerHand = await db.getHand(player.id);
-        const updatedPlayerHand = await handleHand(playerHand, player.id, true);
+        const updatedPlayerHand = await handleHand(playerHand, player.id, true, deck);
         io.to(player.id).emit("hand", updatedPlayerHand);
       });
 
@@ -199,6 +199,8 @@ const startSocketServer = async () => {
 
       console.log('emitting ', { card, player });
       io.in(game).emit("submitted card", { card, player });
+      // TODO:
+      // Need to pass down submitted card state for clients, even on refresh!!!!
     });
 
     socket.on("disconnect", () => {
