@@ -45,6 +45,19 @@ const getDeck = async (game) => {
   return remainingCardsInDeck;
 }
 
+const handleCardSubmissions = async (players, round) => {
+  const playersThatHaveSubmitted = (await db.getPlayersWithHandCardWithRoundId(round.id)).map(player => camelCase(player));
+  const playersThatHaveNotSubmitted = players.filter(player => playersThatHaveSubmitted.includes(player)).map(player => camelCase(player));
+  return {
+    ...camelCase(round),
+    submissions:
+    {
+      playersThatHaveSubmitted,
+      playersThatHaveNotSubmitted
+    }
+  };
+}
+
 // Write a function that takes in a hand and ensures that it always has 7 cards in it
 // Todo: Need to be able to shuffle deck when out of cards
 const handleHand = async (hand, player_game_id, newRound, deck) => {
@@ -150,7 +163,9 @@ const startSocketServer = async () => {
     socket.on("round", async (data) => {
       const { game } = data;
       const round = await handleRound(game);
-      io.in(game).emit("round", camelCase(round));
+      const players = await db.getPlayersInGame(game);
+      const roundAndSubmissionDataToReturn = await handleCardSubmissions(players, round);
+      io.in(game).emit("round", roundAndSubmissionDataToReturn);
     });
 
     // A client will let the server know when a new round is requested
@@ -168,10 +183,12 @@ const startSocketServer = async () => {
         io.to(player.id).emit("hand", updatedPlayerHand);
       });
 
-      io.in(game).emit("round", camelCase(round));
+      const roundAndSubmissionDataToReturn = await handleCardSubmissions(players, round);
+      io.in(game).emit("round", roundAndSubmissionDataToReturn);
     });
 
     socket.on("clue", async (data) => { 
+      console.log('Player submitted clue: ', data);
       const { game, clue } = data;
     
       const [round] = await db.getRounds(game);
@@ -180,6 +197,7 @@ const startSocketServer = async () => {
     });
 
     socket.on("submit card", async (data) => {
+      console.log('Player submitted card: ', data);
       // When a player submits a card, update the card to include the round id on which it was played
       const { game, imgixPath, playerId } = data;
       const [round] = await db.getRounds(game);
@@ -192,15 +210,11 @@ const startSocketServer = async () => {
 
       // Check which players in a game have not submitted a card yet
       const players = await db.getPlayersInGame(game);
-      const playersThatHaveSubmitted = await db.getPlayersWithHandCardWithRoundId(round.id);
+      const roundAndSubmissionDataToReturn = await handleCardSubmissions(players, round);
 
-      console.log('players in total: ', players);
-      console.log('players that have submitted: ', playersThatHaveSubmitted);
+      console.log('submit card return data: ', roundAndSubmissionDataToReturn);
 
-      console.log('emitting ', { card, player });
-      io.in(game).emit("submitted card", { card, player });
-      // TODO:
-      // Need to pass down submitted card state for clients, even on refresh!!!!
+      io.in(game).emit("cardSubmissions", roundAndSubmissionDataToReturn);
     });
 
     socket.on("disconnect", () => {
