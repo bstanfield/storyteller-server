@@ -94,15 +94,16 @@ const handleRound = async (game) => {
   const rounds = await db.getRounds(game);
   const latestRound = rounds[rounds.length - 1];
   if (latestRound?.completed_at === null) {
-    // If there is a round, and it is not completed, send it
-    return camelCase(latestRound);
+    const [storyteller] = await db.getPlayer(latestRound.player_storyteller);
+    return camelCase({ ...storyteller, ...latestRound });
   } else {
     // If there is no round, or the round is completed, create a new round
     const players = await db.getPlayersInGame(game);
     const playerIds = players.map((player) => player.player_id);
     const storyteller = pickStoryteller(playerIds, rounds.length);
+    const storytellerObj = players.find((player) => player.player_id === storyteller);
     const [round] = await db.insertRound(game, storyteller);
-    return camelCase(round);
+    return camelCase({ ...storytellerObj, ...round });
   }
 }
 
