@@ -23,11 +23,34 @@ const io = socketIo(server, {
 
 let connectedClients = {};
 
+const getDeck = async (game) => {
+  // Get all players in game
+  const players = await db.getPlayersInGame(game);
+  // Get all player hands
+  const playerHands = await Promise.all(
+    players.map(async (player) => {
+      const hand = await db.getHand(player.player_games_id);
+      return {
+        player_id: player.player_id,
+        hand,
+      };
+    }
+    ));
+  
+  // Get all cards not in player hands
+  const cardsInDb = await db.getCards();
+  const cardsInHands = playerHands.map(player => player.hand).flat();
+  const remainingCardsInDeck = cardsInDb.filter(card => !cardsInHands.find(cardInHand => cardInHand.card_id === card.id));
+  console.log('Remaining cards in deck: ', remainingCardsInDeck.length);
+  return remainingCardsInDeck;
+}
+
 // Write a function that takes in a hand and ensures that it always has 7 cards in it
 // Todo: Need to be able to shuffle deck when out of cards
 const handleHand = async (hand, player_game_id, newRound) => {
   let idealHandSize = 6;
   const cardsInDb = await db.getCards();
+  
   // Includes cards that have been played by the player
   const cardsInHand = hand.map(card => {
     return {
@@ -41,12 +64,18 @@ const handleHand = async (hand, player_game_id, newRound) => {
     // Get 7 random cards from cardsInDb
     const randomCards = [];
     for (let i = 0; i < idealHandSize; i++) {
-      const randomIndex = Math.floor(Math.random() * cardsInDb.length);
+      let randomIndices = [];
+      let randomIndex = Math.floor(Math.random() * cardsInDb.length);
+      // Keep cycling until you get a non-duplicate index
+      while (randomIndices.includes(randomIndex)) {
+        randomIndex = Math.floor(Math.random() * cardsInDb.length);
+      }
       randomCards.push(cardsInDb[randomIndex]);
     }
     randomCards.map(card => db.insertHandCard(player_game_id, card.id));
     return randomCards;
   } else if (newRound && cardsInHandUnplayed.length < idealHandSize) {
+    // TODO: Update this to use randomIndex
     // If newRound, and there are less than 7 cards in hand, add cards until 6
     const cardsToAdd = idealHandSize - cardsInHand.length;
     const randomCards = [];
@@ -89,9 +118,10 @@ const startSocketServer = async () => {
 
       socket.emit("id", socket.id);
 
+      const deck = await getDeck(game);
+
       // Deal in the newly joined player
       const [playerInGame] = await db.getPlayerInGame(player_id, game);
-      console.log('player: ', playerInGame);
       const playerHand = await db.getHand(playerInGame.id);
       const updatedPlayerHand = await handleHand(playerHand, playerInGame.id, false);
       socket.emit("hand", updatedPlayerHand);
@@ -142,9 +172,17 @@ const startSocketServer = async () => {
       const { game, clue } = data;
     
       const [round] = await db.getRounds(game);
-      console.log('Inserting clue ', clue, ' for round ', round.id, ' in game ', game);
       await db.addClueToRound(round.id, clue);
       io.in(game).emit("clue", clue);
+    });
+
+    socket.on("submit card", async (data) => {
+      // When a player submits a card, update the card to include the round id on which it was played
+      const { game, card_id, player_id } = data;
+      const [round] = await db.getRounds(game);
+      await db.updateHandCardWithRoundId(round.id, player_id, card_id);
+
+      // Let everyone know that a card has been submitted
     });
 
     socket.on("disconnect", () => {

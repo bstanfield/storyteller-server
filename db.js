@@ -21,7 +21,7 @@ const db = pgp({
 const insertPlayer = async (player) => db.query('INSERT INTO players (name) VALUES ($1) RETURNING *', [player])
 const getPlayer = async (player_id) => db.query('SELECT * FROM players WHERE player_id = $1', [player_id])
 const updatePlayer = async (field, value, playerId) => db.query(`UPDATE players SET ${field} = $1 WHERE player_id = $2`, [value, playerId])
-const getPlayersInGame = async (game_slug) => db.query('SELECT * FROM player_games JOIN players ON player_games.player_id = players.player_id JOIN avatars ON players.avatar_id = avatars.id WHERE game_slug = $1 ORDER BY player_games.created_at DESC', [game_slug])
+const getPlayersInGame = async (game_slug) => db.query('SELECT player_games.id as player_games_id, * FROM player_games JOIN players ON player_games.player_id = players.player_id JOIN avatars ON players.avatar_id = avatars.id WHERE game_slug = $1 ORDER BY player_games.created_at DESC', [game_slug])
 const addPlayerToGame = async (player_id, game_slug) => db.query('INSERT INTO player_games (player_id, game_slug) VALUES ($1, $2) RETURNING *', [player_id, game_slug]);
 const getPlayerInGame = async (player_id, game_slug) => db.query('SELECT * FROM player_games WHERE player_id = $1 AND game_slug = $2', [player_id, game_slug]);
 
@@ -43,6 +43,7 @@ const addClueToRound = async (round_id, clue) => db.query('UPDATE rounds SET clu
 const getHand = async (player_game_id) => db.query('SELECT * FROM hands JOIN player_games ON player_games.id = hands.player_game_id WHERE player_game_id = $1', [player_game_id]);
 const insertHandCard = async (player_game_id, card_id) => db.query('INSERT INTO hands (player_game_id, card_id) VALUES ($1, $2)', [player_game_id, card_id]);
 const updateHandCard = async (player_game_id, card_id) => db.query('UPDATE hands SET card_id = $1 WHERE player_game_id = $2', [card_id, player_game_id]);
+const updateHandCardWithRoundId = async (round_id, player_game_id, card_id) => db.query('UPDATE hands SET round_id = $1, played_at = now() WHERE player_game_id = $2 AND card_id = $3', [round_id, player_game_id, card_id]);
 
 // Cards
 const getCards = async () => db.query('SELECT * FROM cards');
@@ -68,4 +69,5 @@ module.exports = {
   updateHandCard,
   getCards,
   addClueToRound,
+  updateHandCardWithRoundId
 }
