@@ -44,9 +44,11 @@ const getHand = async (player_game_id) => db.query('SELECT * FROM hands JOIN pla
 const insertHandCard = async (player_game_id, card_id) => db.query('INSERT INTO hands (player_game_id, card_id) VALUES ($1, $2)', [player_game_id, card_id]);
 const updateHandCard = async (player_game_id, card_id) => db.query('UPDATE hands SET card_id = $1 WHERE player_game_id = $2', [card_id, player_game_id]);
 const updateHandCardWithRoundId = async (round_id, player_game_id, card_id) => db.query('UPDATE hands SET round_id = $1, played_at = now() WHERE player_game_id = $2 AND card_id = $3', [round_id, player_game_id, card_id]);
+const getPlayersWithHandCardWithRoundId = async (round_id) => db.query('SELECT * FROM hands JOIN player_games ON player_games.id = hands.player_game_id JOIN players ON players.player_id = player_games.player_id WHERE round_id = $1', [round_id]);
 
 // Cards
 const getCards = async () => db.query('SELECT * FROM cards');
+const getCardByImgixPath = async (imgix_path) => db.query('SELECT * FROM cards WHERE imgix_path = $1', [imgix_path]);
 
 module.exports = {
   db,
@@ -69,5 +71,7 @@ module.exports = {
   updateHandCard,
   getCards,
   addClueToRound,
-  updateHandCardWithRoundId
+  updateHandCardWithRoundId,
+  getPlayersWithHandCardWithRoundId,
+  getCardByImgixPath
 }

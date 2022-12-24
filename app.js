@@ -181,11 +181,24 @@ const startSocketServer = async () => {
 
     socket.on("submit card", async (data) => {
       // When a player submits a card, update the card to include the round id on which it was played
-      const { game, card_id, player_id } = data;
+      const { game, imgixPath, playerId } = data;
       const [round] = await db.getRounds(game);
-      await db.updateHandCardWithRoundId(round.id, player_id, card_id);
+      const [player] = await db.getPlayer(playerId);
+      const [playerInGame] = await db.getPlayerInGame(playerId, game);
+      const [card] = await db.getCardByImgixPath(imgixPath);
 
-      // Let everyone know that a card has been submitted
+      // Stamps the card with the round id
+      await db.updateHandCardWithRoundId(round.id, playerInGame.id, card.id);
+
+      // Check which players in a game have not submitted a card yet
+      const players = await db.getPlayersInGame(game);
+      const playersThatHaveSubmitted = await db.getPlayersWithHandCardWithRoundId(round.id);
+
+      console.log('players in total: ', players);
+      console.log('players that have submitted: ', playersThatHaveSubmitted);
+
+      console.log('emitting ', { card, player });
+      io.in(game).emit("submitted card", { card, player });
     });
 
     socket.on("disconnect", () => {
