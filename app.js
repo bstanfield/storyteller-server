@@ -46,20 +46,16 @@ const getDeck = async (game) => {
 }
 
 const handleCardSubmissions = async (players, round) => {
-  const playersThatHaveSubmitted = (await db.getPlayersWithHandCardWithRoundId(round.id)).map(player => player);
-  console.log('players: ', players);
-  console.log('subbed: ', playersThatHaveSubmitted);
+  let playersThatHaveSubmitted = (await db.getPlayersWithHandCardWithRoundId(round.id)).map(player => player);
   let playersThatHaveNotSubmitted = [];
   for (let player of players) {
-    // console.log('player: ', player.id);
     const submitted = playersThatHaveSubmitted.map(player => player.player_games_id);
-    // console.log('submitted: ', submitted);
     if (!submitted.includes(player.player_games_id)) {
       playersThatHaveNotSubmitted.push(camelCase(player));
     }
   }
-  console.log('players that have submitted: ', playersThatHaveSubmitted.map(player => player.name));
-  console.log('players that have not submitted: ', playersThatHaveNotSubmitted.map(player => player.name));
+
+  playersThatHaveSubmitted = playersThatHaveSubmitted.map(player => camelCase(player));
   return {
     ...camelCase(round),
     submissions:

@@ -40,11 +40,11 @@ const getRounds = async (game_slug) => db.query('SELECT * FROM rounds WHERE game
 const addClueToRound = async (round_id, clue) => db.query('UPDATE rounds SET clue = $1 WHERE id = $2', [clue, round_id]);
 
 // Hands
-const getHand = async (player_game_id) => db.query('SELECT * FROM hands JOIN player_games ON player_games.id = hands.player_game_id WHERE player_game_id = $1', [player_game_id]);
-const insertHandCard = async (player_game_id, card_id) => db.query('INSERT INTO hands (player_game_id, card_id) VALUES ($1, $2)', [player_game_id, card_id]);
-const updateHandCard = async (player_game_id, card_id) => db.query('UPDATE hands SET card_id = $1 WHERE player_game_id = $2', [card_id, player_game_id]);
-const updateHandCardWithRoundId = async (round_id, player_game_id, card_id) => db.query('UPDATE hands SET round_id = $1, played_at = now() WHERE player_game_id = $2 AND card_id = $3', [round_id, player_game_id, card_id]);
-const getPlayersWithHandCardWithRoundId = async (round_id) => db.query('SELECT * FROM hands JOIN player_games ON player_games.id = hands.player_game_id JOIN players ON players.player_id = player_games.player_id WHERE round_id = $1', [round_id]);
+const getHand = async (player_games_id) => db.query('SELECT * FROM hands JOIN player_games ON player_games.id = hands.player_games_id WHERE player_games_id = $1', [player_games_id]);
+const insertHandCard = async (player_games_id, card_id) => db.query('INSERT INTO hands (player_games_id, card_id) VALUES ($1, $2)', [player_games_id, card_id]);
+const updateHandCard = async (player_games_id, card_id) => db.query('UPDATE hands SET card_id = $1 WHERE player_games_id = $2', [card_id, player_games_id]);
+const updateHandCardWithRoundId = async (round_id, player_games_id, card_id) => db.query('UPDATE hands SET round_id = $1, played_at = now() WHERE player_games_id = $2 AND card_id = $3', [round_id, player_games_id, card_id]);
+const getPlayersWithHandCardWithRoundId = async (round_id) => db.query('SELECT * FROM hands JOIN player_games ON player_games.id = hands.player_games_id JOIN players ON players.player_id = player_games.player_id WHERE round_id = $1', [round_id]);
 
 // Cards
 const getCards = async () => db.query('SELECT * FROM cards');
