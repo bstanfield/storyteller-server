@@ -51,6 +51,10 @@ const getCards = async () => db.query('SELECT * FROM cards');
 const getCard = async (card_id) => db.query('SELECT * FROM cards WHERE id = $1', [card_id]);
 const getCardByImgixPath = async (imgix_path) => db.query('SELECT * FROM cards WHERE imgix_path = $1', [imgix_path]);
 
+// Votes
+const getVotes = async (round_id) => db.query('SELECT * FROM votes WHERE round_id = $1', [round_id]);
+const addVote = async (round_id, voter_player_games_id, submitter_player_games_id) => db.query('INSERT INTO votes (round_id, voter_player_games_id, submitter_player_games_id) VALUES ($1, $2, $3)', [round_id, voter_player_games_id, submitter_player_games_id]);
+
 module.exports = {
   db,
   getValidGames,
@@ -75,5 +79,7 @@ module.exports = {
   updateHandCardWithRoundId,
   getPlayersWithHandCardWithRoundId,
   getCardByImgixPath,
-  getCard
+  getCard,
+  getVotes,
+  addVote
 }

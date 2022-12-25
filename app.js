@@ -65,8 +65,18 @@ const handleCardSubmissions = async (game) => {
       imgixPath: card.imgix_path,
     }
   }));
-  
-  console.log('playersThatHaveSubmitted', playersThatHaveSubmitted);
+
+  const votes = await db.getVotes(round.id);
+  let playersThatHaveVoted = votes.map(vote => vote.player_games_id);
+  let playersThatHaveNotVoted = [];
+  for (let player of players) {
+    if (!playersThatHaveVoted.includes(player.player_games_id)) {
+      playersThatHaveNotVoted.push(camelCase(player));
+    }
+  }
+
+  console.log('playersThatHaveVoted', playersThatHaveVoted);
+  console.log('playersThatHaveNotVoted', playersThatHaveNotVoted);
 
   return {
     ...camelCase(round),
@@ -74,6 +84,10 @@ const handleCardSubmissions = async (game) => {
     {
       playersThatHaveSubmitted,
       playersThatHaveNotSubmitted
+    },
+    votes: {
+      playersThatHaveVoted,
+      playersThatHaveNotVoted
     }
   };
 }
@@ -224,9 +238,20 @@ const startSocketServer = async () => {
       io.in(game).emit("cardSubmissions", roundAndSubmissionDataToReturn);
     });
 
-    socket.on("submit vote", async (data) => { 
+    socket.on("submit vote", async (data) => {
+      console.log('Player submitted vote: ', data);
+      const { game, playerIdThatVoted, playerIdThatReceivedVote } = data;
 
+      // Add vote to db
+      const [round] = await db.getRounds(game);
+      const vote = await db.addVote(round.id, playerIdThatVoted, playerIdThatReceivedVote);
+      console.log('vote: ', vote);
 
+      // Ensure this can handle votes
+      const roundAndSubmissionDataToReturn = await handleCardSubmissions(game);
+
+      // Should this just emit round data?
+      io.in(game).emit("voteSubmissions", roundAndSubmissionDataToReturn);
     });
 
     socket.on("disconnect", () => {
