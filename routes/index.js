@@ -26,8 +26,6 @@ router.get("/create", async (req, res) => {
     slug = generateRandomSlug(4);
   }
 
-  console.log('New game slug: ', slug);
-
   // Check how many games exist
   const numGames = existingGameSlugs.length;
 
@@ -95,7 +93,6 @@ router.get("/game/add-player", async (req, res) => {
       console.log('Player already in game');
       return res.send({ error: 'Player already in game', sent: player_id }).status(400);
     } else {
-      console.log('Player not in game');
       await db.addPlayerToGame(player_id, game);
     }
   } catch (err) {

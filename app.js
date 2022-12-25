@@ -21,7 +21,7 @@ const io = socketIo(server, {
   },
 });
 
-let connectedClients = {};
+let connectedClients = [];
 
 const getDeck = async (game) => {
   // Get all players in game
@@ -35,13 +35,12 @@ const getDeck = async (game) => {
         hand,
       };
     }
-    ));
+  ));
   
   // Get all cards not in player hands
   const deck = await db.getCards();
   const cardsInHands = playerHands.map(player => player.hand).flat();
   const remainingCardsInDeck = deck.filter(card => !cardsInHands.find(cardInHand => cardInHand.card_id === card.id));
-  console.log('Remaining cards in deck: ', remainingCardsInDeck.length);
   return remainingCardsInDeck;
 }
 
@@ -55,7 +54,15 @@ const handleCardSubmissions = async (players, round) => {
     }
   }
 
-  playersThatHaveSubmitted = playersThatHaveSubmitted.map(player => camelCase(player));
+  // For each submission is playersThatHaveSubmitted, get the card object
+  playersThatHaveSubmitted = await Promise.all(playersThatHaveSubmitted.map(async (submission) => {
+    const [card] = await db.getCard(submission.card_id);
+    return {
+      ...camelCase(submission),
+      imgixPath: card.imgix_path,
+    }
+  }));
+
   return {
     ...camelCase(round),
     submissions:
@@ -154,10 +161,7 @@ const startSocketServer = async () => {
     });
 
     // Game agnostic code
-    // TODO: Add avatar preference
-    connectedClients[socket.id] = {
-      ...connectedClients[socket.id],
-    };
+    connectedClients.push(socket.id);
 
     // When a client starts game, emit to all clients
     socket.on("start", async (data) => {
@@ -196,7 +200,6 @@ const startSocketServer = async () => {
     });
 
     socket.on("clue", async (data) => { 
-      console.log('Player submitted clue: ', data);
       const { game, clue } = data;
     
       const [round] = await db.getRounds(game);
@@ -220,29 +223,21 @@ const startSocketServer = async () => {
       const players = await db.getPlayersInGame(game);
       const roundAndSubmissionDataToReturn = await handleCardSubmissions(players, round);
 
-      console.log('submit card return data: ', roundAndSubmissionDataToReturn);
-
       io.in(game).emit("cardSubmissions", roundAndSubmissionDataToReturn);
     });
 
     socket.on("disconnect", () => {
-      const clientToDelete = connectedClients[socket.id];
-      console.log(socket.id, " left ", clientToDelete.game);
-      if (clientToDelete) {
-        // Check game before deleting
-        const game = clientToDelete.game;
-        delete connectedClients[socket.id];
+      console.log('client is disconnecting: ', socket.id);
+      const clientToDelete = connectedClients.indexOf(socket.id);
+      if (clientToDelete > -1) {
+        connectedClients.splice(clientToDelete, 1);
+        console.log('remaining clients: ', connectedClients.length);
 
-        // Count clients in game
-        let players = [];
-        for (const [key, value] of Object.entries(connectedClients)) {
-          if (value.game === game) {
-            players.push(value);
-          }
-        }
+        // Count clients in game 
 
-      // Tell everyone who is in the game
-      // io.to(game).emit("players", players);
+        // Tell everyone who is in the game
+        // io.to(game).emit("players", players);
+        // TODO: Use this area to update player state to offline
       }
     });
   });

@@ -48,6 +48,7 @@ const getPlayersWithHandCardWithRoundId = async (round_id) => db.query('SELECT *
 
 // Cards
 const getCards = async () => db.query('SELECT * FROM cards');
+const getCard = async (card_id) => db.query('SELECT * FROM cards WHERE id = $1', [card_id]);
 const getCardByImgixPath = async (imgix_path) => db.query('SELECT * FROM cards WHERE imgix_path = $1', [imgix_path]);
 
 module.exports = {
@@ -73,5 +74,6 @@ module.exports = {
   addClueToRound,
   updateHandCardWithRoundId,
   getPlayersWithHandCardWithRoundId,
-  getCardByImgixPath
+  getCardByImgixPath,
+  getCard
 }
