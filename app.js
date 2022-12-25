@@ -46,8 +46,20 @@ const getDeck = async (game) => {
 }
 
 const handleCardSubmissions = async (players, round) => {
-  const playersThatHaveSubmitted = (await db.getPlayersWithHandCardWithRoundId(round.id)).map(player => camelCase(player));
-  const playersThatHaveNotSubmitted = players.filter(player => playersThatHaveSubmitted.includes(player)).map(player => camelCase(player));
+  const playersThatHaveSubmitted = (await db.getPlayersWithHandCardWithRoundId(round.id)).map(player => player);
+  console.log('players: ', players);
+  console.log('subbed: ', playersThatHaveSubmitted);
+  let playersThatHaveNotSubmitted = [];
+  for (let player of players) {
+    // console.log('player: ', player.id);
+    const submitted = playersThatHaveSubmitted.map(player => player.player_games_id);
+    // console.log('submitted: ', submitted);
+    if (!submitted.includes(player.player_games_id)) {
+      playersThatHaveNotSubmitted.push(camelCase(player));
+    }
+  }
+  console.log('players that have submitted: ', playersThatHaveSubmitted.map(player => player.name));
+  console.log('players that have not submitted: ', playersThatHaveNotSubmitted.map(player => player.name));
   return {
     ...camelCase(round),
     submissions:
@@ -60,7 +72,7 @@ const handleCardSubmissions = async (players, round) => {
 
 // Write a function that takes in a hand and ensures that it always has 7 cards in it
 // Todo: Need to be able to shuffle deck when out of cards
-const handleHand = async (hand, player_game_id, newRound, deck) => {
+const handleHand = async (hand, player_games_id, newRound, deck) => {
   let idealHandSize = 6;
   const cardsInDb = await db.getCards();
   
@@ -85,7 +97,7 @@ const handleHand = async (hand, player_game_id, newRound, deck) => {
       }
       randomCards.push(deck[randomIndex]);
     }
-    randomCards.map(card => db.insertHandCard(player_game_id, card.id));
+    randomCards.map(card => db.insertHandCard(player_games_id, card.id));
     return randomCards;
   } else if (newRound && cardsInHandUnplayed.length < idealHandSize) {
     // TODO: Update this to use randomIndex
@@ -96,7 +108,7 @@ const handleHand = async (hand, player_game_id, newRound, deck) => {
       const randomIndex = Math.floor(Math.random() * deck.length);
       randomCards.push(deck[randomIndex]);
     }
-    randomCards.map(card => db.insertHandCard(player_game_id, card.id));
+    randomCards.map(card => db.insertHandCard(player_games_id, card.id));
     return [...cardsInHandUnplayed, ...randomCards];
   } else {
     return cardsInHandUnplayed; // Only return cards that have not been played yet
