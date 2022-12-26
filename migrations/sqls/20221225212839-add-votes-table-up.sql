@@ -9,4 +9,4 @@ CREATE TABLE votes (
 
 -- Indices -------------------------------------------------------
 
-CREATE UNIQUE INDEX votes_pkey ON votes(id int4_ops);
+CREATE UNIQUE INDEX IF NOT EXISTS votes_pkey ON votes(id int4_ops);
