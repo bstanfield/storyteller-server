@@ -75,9 +75,6 @@ const handleCardSubmissions = async (game) => {
     }
   }
 
-  console.log('playersThatHaveVoted', playersThatHaveVoted);
-  console.log('playersThatHaveNotVoted', playersThatHaveNotVoted);
-
   return {
     ...camelCase(round),
     submissions:
@@ -154,6 +151,65 @@ const handleRound = async (game) => {
   }
 }
 
+const determinePlayerStatus = async (players, game) => {
+  // Player status is either "playing" or "waiting", depending on whether they have submitted a card
+  let playersWithStatus = players.map(player => camelCase(player)); // Need to get this in camel case to match roundAndSubmissionData
+  const roundAndSubmissionData = await handleCardSubmissions(game);
+
+  const { submissions, storyteller } = roundAndSubmissionData;
+  
+  if (roundAndSubmissionData.clue === null) {
+    // Clue phase
+    playersWithStatus.forEach((player, i) => {
+      if (player.playerId === storyteller.playerId) {
+        playersWithStatus[i].status = "playing";
+      } else {
+        playersWithStatus[i].status = "waiting";
+      }
+    });
+  }
+  else if (submissions.playersThatHaveNotSubmitted.length > 0) {
+    // Submission phase
+    playersWithStatus.forEach((player, i) => {
+      if (player.playerId === storyteller.playerId) {
+        playersWithStatus[i].status = "waiting";
+      }
+      if (submissions.playersThatHaveNotSubmitted.find((playerThatHasNotSubmitted) => playerThatHasNotSubmitted.playerId === player.playerId)) {
+        playersWithStatus[i].status = "playing";
+      } else {
+        playersWithStatus[i].status = "waiting";
+      }
+    });
+  } else {
+    // Voting phase
+    playersWithStatus.forEach((player, i) => {
+      if (player.playerId === storyteller.playerId) {
+        playersWithStatus[i].status = "waiting";
+      }
+      if (votes.playersThatHaveNotVoted.find((playerThatHasNotVoted) => playerThatHasNotVoted.playerId === player.playerId)) {
+        playersWithStatus[i].status = "playing";
+      } else {
+        playersWithStatus[i].status = "waiting";
+      }
+    });
+  }
+
+  // Special cases for storyteller
+  playersWithStatus.forEach((player, i) => {
+    if (player.playerId === roundAndSubmissionData.storyteller.playerId) {
+      
+    }
+  });
+
+  return playersWithStatus;
+}
+
+const handlePlayers = async (game) => {
+  const players = await db.getPlayersInGame(game);
+  const playersWithStatus = await determinePlayerStatus(players, game);
+  return playersWithStatus;
+}
+
 const startSocketServer = async () => {
   io.on("connection", async (socket) => {
     // Assign to game and hand down board
@@ -175,7 +231,7 @@ const startSocketServer = async () => {
       socket.emit("hand", updatedPlayerHand);
       
       // Tell everyone who is in the game
-      const players = await db.getPlayersInGame(game);
+      const players = await handlePlayers(game);
       io.to(game).emit("players", players);
     });
 
@@ -194,6 +250,9 @@ const startSocketServer = async () => {
     socket.on("round", async (data) => {
       const { game } = data;
       const roundAndSubmissionDataToReturn = await handleCardSubmissions(game);
+      const players = await handlePlayers(game);
+      
+      io.in(game).emit("players", players);
       io.in(game).emit("round", roundAndSubmissionDataToReturn);
     });
 
@@ -203,7 +262,7 @@ const startSocketServer = async () => {
       const deck = await getDeck(game);
 
       // For each player in game, deal in additional cards
-      const players = await db.getPlayersInGame(game);
+      const players = await handlePlayers(game);
       players.map(async (player) => {
         const playerHand = await db.getHand(player.id);
         const updatedPlayerHand = await handleHand(playerHand, player.id, true, deck);
@@ -211,6 +270,8 @@ const startSocketServer = async () => {
       });
 
       const roundAndSubmissionDataToReturn = await handleCardSubmissions(game);
+
+      io.in(game).emit("players", players);
       io.in(game).emit("round", roundAndSubmissionDataToReturn);
     });
 
@@ -223,7 +284,6 @@ const startSocketServer = async () => {
     });
 
     socket.on("submit card", async (data) => {
-      console.log('Player submitted card: ', data);
       // When a player submits a card, update the card to include the round id on which it was played
       const { game, imgixPath, playerId } = data;
       const [round] = await db.getRounds(game);
@@ -234,7 +294,9 @@ const startSocketServer = async () => {
       await db.updateHandCardWithRoundId(round.id, playerInGame.id, card.id);
 
       const roundAndSubmissionDataToReturn = await handleCardSubmissions(game);
-
+      const players = await handlePlayers(game);
+      
+      io.in(game).emit("players", players);
       io.in(game).emit("round", roundAndSubmissionDataToReturn);
     });
 
@@ -245,11 +307,12 @@ const startSocketServer = async () => {
       // Add vote to db
       const [round] = await db.getRounds(game);
       const vote = await db.addVote(round.id, playerIdThatVoted, playerIdThatReceivedVote);
-      console.log('vote: ', vote);
 
       // Ensure this can handle votes
       const roundAndSubmissionDataToReturn = await handleCardSubmissions(game);
-
+      const players = await handlePlayers(game);
+      
+      io.in(game).emit("players", players);
       io.in(game).emit("round", roundAndSubmissionDataToReturn);
     });
 

@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
+const { camelCase } = require("../helpers");
 
 router.get("/", (req, res) => {
   res.send({ response: "I am alive" }).status(200);
@@ -76,7 +77,7 @@ router.get("/create/avatar", async (req, res) => {
 // Create a route that gets avatars
 router.get("/avatars", async (req, res) => {
   const avatars = await db.getAvatars();
-  res.send({ avatars }).status(200);
+  res.send({ avatars: avatars.map(avatar => camelCase(avatar)) }).status(200);
 });
 
 router.get("/game/add-player", async (req, res) => {
