@@ -156,7 +156,7 @@ const determinePlayerStatus = async (players, game) => {
   let playersWithStatus = players.map(player => camelCase(player)); // Need to get this in camel case to match roundAndSubmissionData
   const roundAndSubmissionData = await handleCardSubmissions(game);
 
-  const { submissions, storyteller } = roundAndSubmissionData;
+  const { submissions, votes, storyteller } = roundAndSubmissionData;
   
   if (roundAndSubmissionData.clue === null) {
     // Clue phase
@@ -171,35 +171,28 @@ const determinePlayerStatus = async (players, game) => {
   else if (submissions.playersThatHaveNotSubmitted.length > 0) {
     // Submission phase
     playersWithStatus.forEach((player, i) => {
-      if (player.playerId === storyteller.playerId) {
-        playersWithStatus[i].status = "waiting";
-      }
       if (submissions.playersThatHaveNotSubmitted.find((playerThatHasNotSubmitted) => playerThatHasNotSubmitted.playerId === player.playerId)) {
         playersWithStatus[i].status = "playing";
       } else {
+        playersWithStatus[i].status = "waiting";
+      }
+      if (player.playerId === storyteller.playerId) {
         playersWithStatus[i].status = "waiting";
       }
     });
   } else {
     // Voting phase
     playersWithStatus.forEach((player, i) => {
-      if (player.playerId === storyteller.playerId) {
-        playersWithStatus[i].status = "waiting";
-      }
       if (votes.playersThatHaveNotVoted.find((playerThatHasNotVoted) => playerThatHasNotVoted.playerId === player.playerId)) {
         playersWithStatus[i].status = "playing";
       } else {
         playersWithStatus[i].status = "waiting";
       }
+      if (player.playerId === storyteller.playerId) {
+        playersWithStatus[i].status = "waiting";
+      }
     });
   }
-
-  // Special cases for storyteller
-  playersWithStatus.forEach((player, i) => {
-    if (player.playerId === roundAndSubmissionData.storyteller.playerId) {
-      
-    }
-  });
 
   return playersWithStatus;
 }
