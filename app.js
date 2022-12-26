@@ -52,7 +52,7 @@ const handleCardSubmissions = async (game) => {
   let playersThatHaveNotSubmitted = [];
   for (let player of players) {
     const submitted = playersThatHaveSubmitted.map(player => player.player_games_id);
-    if (!submitted.includes(player.player_games_id)) {
+    if (!submitted.includes(player.player_games_id) && player.player_id !== round.storyteller.playerId) {
       playersThatHaveNotSubmitted.push(camelCase(player));
     }
   }
@@ -70,7 +70,7 @@ const handleCardSubmissions = async (game) => {
   let playersThatHaveVoted = votes.map(vote => vote.player_games_id);
   let playersThatHaveNotVoted = [];
   for (let player of players) {
-    if (!playersThatHaveVoted.includes(player.player_games_id)) {
+    if (!playersThatHaveVoted.includes(player.player_games_id) && player.player_id !== round.storyteller.playerId) {
       playersThatHaveNotVoted.push(camelCase(player));
     }
   }
