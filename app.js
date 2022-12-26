@@ -235,7 +235,7 @@ const startSocketServer = async () => {
 
       const roundAndSubmissionDataToReturn = await handleCardSubmissions(game);
 
-      io.in(game).emit("cardSubmissions", roundAndSubmissionDataToReturn);
+      io.in(game).emit("round", roundAndSubmissionDataToReturn);
     });
 
     socket.on("submit vote", async (data) => {
@@ -250,8 +250,7 @@ const startSocketServer = async () => {
       // Ensure this can handle votes
       const roundAndSubmissionDataToReturn = await handleCardSubmissions(game);
 
-      // Should this just emit round data?
-      io.in(game).emit("voteSubmissions", roundAndSubmissionDataToReturn);
+      io.in(game).emit("round", roundAndSubmissionDataToReturn);
     });
 
     socket.on("disconnect", () => {
