@@ -16,6 +16,7 @@ const joinListener = async (io, socket, data) => {
   // Deal in the newly joined player
   const [playerInGame] = await db.getPlayerInGame(player_id, game);
   const playerHand = await db.getHand(playerInGame.id);
+  console.log("updating player hand, new round: ", false);
   const updatedPlayerHand = await h.handleHand(
     playerHand,
     playerInGame.id,

@@ -26,7 +26,7 @@ const handleDeck = async (game) => {
 
 const handleCardSubmissions = async (game) => {
   const players = await db.getPlayersInGame(game);
-  const round = await handleRound(game);
+  let round = await handleRound(game);
 
   let playersThatHaveSubmitted = (
     await db.getPlayersWithHandCardWithRoundId(round.id)
@@ -64,6 +64,14 @@ const handleCardSubmissions = async (game) => {
     ) {
       playersThatHaveNotVoted.push(camelCase(player));
     }
+  }
+
+  if (playersThatHaveNotVoted.length === 0 && players.length > 1) {
+    // Set round completed_at to now
+    await db.addCompletedAtToRound(round.id);
+    round.completedAt = new Date();
+    console.log("Adding completed_at to round!");
+    console.log("round: ", round);
   }
 
   return {
@@ -127,14 +135,15 @@ const handleHand = async (hand, player_games_id, newRound, deck) => {
   }
 };
 
+// NOTE: This does not create a new round if the current round is completed
 const handleRound = async (game) => {
   const rounds = await db.getRounds(game);
   const latestRound = rounds[rounds.length - 1];
-  if (latestRound?.completed_at === null) {
+  if (latestRound) {
     const [storyteller] = await db.getPlayer(latestRound.player_storyteller);
     return camelCase({ storyteller, ...latestRound });
   } else {
-    // If there is no round, or the round is completed, create a new round
+    // If there is no round, create a new one
     const players = await db.getPlayersInGame(game);
     const playerIds = players.map((player) => player.player_id);
     const storyteller = pickStoryteller(playerIds, rounds.length);

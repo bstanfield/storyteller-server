@@ -2,6 +2,7 @@ const db = require("../db");
 const h = require("../handlers");
 
 const newRoundListener = async (io, socket, data) => {
+  console.log("NEW ROUND TRIGGERED!");
   const { game } = data;
   const deck = await h.handleDeck(game);
 

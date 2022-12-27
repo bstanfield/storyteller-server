@@ -68,11 +68,14 @@ const insertRound = async (game_slug, storyteller_id) =>
   );
 const getRounds = async (game_slug) =>
   db.query(
-    "SELECT * FROM rounds WHERE game_slug = $1 ORDER BY created_at ASC",
+    "SELECT * FROM rounds WHERE game_slug = $1 ORDER BY created_at DESC",
     [game_slug]
   );
 const addClueToRound = async (round_id, clue) =>
   db.query("UPDATE rounds SET clue = $1 WHERE id = $2", [clue, round_id]);
+
+const addCompletedAtToRound = async (round_id) =>
+  db.query("UPDATE rounds SET completed_at = now() WHERE id = $1", [round_id]);
 
 // Hands
 const getHand = async (player_games_id) =>
@@ -149,4 +152,5 @@ module.exports = {
   getVotes,
   addVote,
   getPlayerInGameBySubmittedImage,
+  addCompletedAtToRound,
 };

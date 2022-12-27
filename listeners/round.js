@@ -7,6 +7,10 @@ const roundListener = async (io, socket, data) => {
   const players = await h.handlePlayers(game);
 
   io.in(game).emit("players", players);
+  console.log(
+    "roundAndSubmissionDataToReturn: ",
+    roundAndSubmissionDataToReturn
+  );
   io.in(game).emit("round", roundAndSubmissionDataToReturn);
 };
 

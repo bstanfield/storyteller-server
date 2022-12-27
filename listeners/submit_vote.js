@@ -26,10 +26,8 @@ const submitVoteListener = async (io, socket, data) => {
 
   // Ensure this can handle votes
   const roundAndSubmissionDataToReturn = await h.handleCardSubmissions(game);
-  // console.log('Now that the vote is in, here is the round data: ', roundAndSubmissionDataToReturn);
+  // TODO: Add a way to set completed_at for a round
   const players = await h.handlePlayers(game);
-
-  console.log("And here are the players: ", players);
 
   io.in(game).emit("players", players);
   io.in(game).emit("round", roundAndSubmissionDataToReturn);
