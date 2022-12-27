@@ -57,7 +57,6 @@ const handleCardSubmissions = async (game) => {
     }
   }
 
-  // For each submission is playersThatHaveSubmitted, get the card object
   playersThatHaveSubmitted = await Promise.all(playersThatHaveSubmitted.map(async (submission) => {
     const [card] = await db.getCard(submission.card_id);
     return {
@@ -67,13 +66,15 @@ const handleCardSubmissions = async (game) => {
   }));
 
   const votes = await db.getVotes(round.id);
-  let playersThatHaveVoted = votes.map(vote => vote.player_games_id);
+  let playersThatHaveVoted = votes.map(vote => vote.voter_player_games_id);
   let playersThatHaveNotVoted = [];
   for (let player of players) {
     if (!playersThatHaveVoted.includes(player.player_games_id) && player.player_id !== round.storyteller.playerId) {
       playersThatHaveNotVoted.push(camelCase(player));
     }
   }
+
+  console.log('sending votes: ', votes);
 
   return {
     ...camelCase(round),
@@ -295,15 +296,26 @@ const startSocketServer = async () => {
 
     socket.on("submit vote", async (data) => {
       console.log('Player submitted vote: ', data);
-      const { game, playerIdThatVoted, playerIdThatReceivedVote } = data;
+      const { game, playerId, imagePath } = data;
+      const [round] = await db.getRounds(game);
+
+      const [playerThatVotedObj] = await db.getPlayerInGame(playerId, game);
+      const playerGameIdThatVoted = playerThatVotedObj.id;
+      // Using imagePath, find playerGameId of player that received vote
+      const [player] = await db.getPlayerInGameBySubmittedImage(imagePath, round.id);
+      const playerGameIdThatReceivedVote = player?.player_games_id;
 
       // Add vote to db
-      const [round] = await db.getRounds(game);
-      const vote = await db.addVote(round.id, playerIdThatVoted, playerIdThatReceivedVote);
+      // TODO: Don't allow ppl to vote for themselves, and to vote more than once
+      // console.log('Placing vote...');
+      const vote = await db.addVote(round.id, playerGameIdThatVoted, playerGameIdThatReceivedVote);
 
       // Ensure this can handle votes
       const roundAndSubmissionDataToReturn = await handleCardSubmissions(game);
+      // console.log('Now that the vote is in, here is the round data: ', roundAndSubmissionDataToReturn);
       const players = await handlePlayers(game);
+
+      console.log('And here are the players: ', players);
       
       io.in(game).emit("players", players);
       io.in(game).emit("round", roundAndSubmissionDataToReturn);
@@ -329,3 +341,5 @@ const startSocketServer = async () => {
 startSocketServer();
 
 server.listen(port, () => console.log(`Listening on port ${port}`));
+
+process.on('warning', e => console.warn(e.stack));

@@ -24,6 +24,7 @@ const updatePlayer = async (field, value, playerId) => db.query(`UPDATE players 
 const getPlayersInGame = async (game_slug) => db.query('SELECT player_games.id as player_games_id, * FROM player_games JOIN players ON player_games.player_id = players.player_id JOIN avatars ON players.avatar_id = avatars.id WHERE game_slug = $1 ORDER BY player_games.created_at DESC', [game_slug])
 const addPlayerToGame = async (player_id, game_slug) => db.query('INSERT INTO player_games (player_id, game_slug) VALUES ($1, $2) RETURNING *', [player_id, game_slug]);
 const getPlayerInGame = async (player_id, game_slug) => db.query('SELECT * FROM player_games WHERE player_id = $1 AND game_slug = $2', [player_id, game_slug]);
+const getPlayerInGameBySubmittedImage = async (imgix_path, round) => db.query('SELECT player_games_id FROM hands JOIN player_games ON player_games.id = hands.player_games_id JOIN players ON players.player_id = player_games.player_id JOIN cards ON cards.id = hands.card_id WHERE round_id = $1 and cards.imgix_path = $2', [round, imgix_path]);
 
 // Games
 const insertGame = async (slug) => db.query('INSERT INTO games (slug) VALUES ($1) RETURNING *', [slug]);
@@ -81,5 +82,6 @@ module.exports = {
   getCardByImgixPath,
   getCard,
   getVotes,
-  addVote
+  addVote,
+  getPlayerInGameBySubmittedImage
 }
