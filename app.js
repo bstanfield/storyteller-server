@@ -74,8 +74,6 @@ const handleCardSubmissions = async (game) => {
     }
   }
 
-  console.log('sending votes: ', votes);
-
   return {
     ...camelCase(round),
     submissions:
