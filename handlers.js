@@ -94,7 +94,7 @@ const handleCardSubmissions = async (game) => {
   };
 };
 
-// Write a function that takes in a hand and ensures that it always has 7 cards in it
+// Write a function that takes in a hand and ensures that it always has the appropriate number of cards in it
 // Todo: Need to be able to shuffle deck when out of cards
 const handleHand = async (hand, player_games_id, newRound, deck) => {
   let idealHandSize = 6;
@@ -109,9 +109,13 @@ const handleHand = async (hand, player_games_id, newRound, deck) => {
         .imgix_path,
     };
   });
+
+  console.log("New round: ", newRound);
+  console.log("Player Games ID: ", player_games_id);
   const cardsInHandUnplayed = cardsInHand.filter(
     (card) => card.played_at === null
   );
+  console.log("Total unplayed cards: ", cardsInHandUnplayed.length);
   if (cardsInHandUnplayed.length === 0) {
     // Get 7 random cards from deck
     const randomCards = [];
@@ -128,20 +132,21 @@ const handleHand = async (hand, player_games_id, newRound, deck) => {
     randomCards.map((card) => db.insertHandCard(player_games_id, card.id));
     return randomCards;
   } else if (newRound && cardsInHandUnplayed.length < idealHandSize) {
-    console.log("Adding new cards to hand!");
-    // TODO: Update this to use randomIndex
-    // If newRound, and there are less than 7 cards in hand, add cards until 6
-    const cardsToAdd = idealHandSize - cardsInHand.length;
+    console.log("ADDING NEW CARDS TO HAND! ------");
+    // If newRound, and there are less than appropriate # of unplayed cards in hand, add cards until there are appropriate #
+    const cardsToAdd = idealHandSize - cardsInHandUnplayed.length;
     console.log("cardsToAdd: ", cardsToAdd);
     const randomCards = [];
     for (let i = 0; i < cardsToAdd; i++) {
       const randomIndex = Math.floor(Math.random() * deck.length);
       randomCards.push(deck[randomIndex]);
     }
-    console.log("insertHandCard 1");
+    console.log("Pre-return");
     randomCards.map((card) => db.insertHandCard(player_games_id, card.id));
+    console.log("HIT RETURN 1");
     return [...cardsInHandUnplayed, ...randomCards];
   } else {
+    console.log("HIT RETURN 2");
     return cardsInHandUnplayed; // Only return cards that have not been played yet
   }
 };

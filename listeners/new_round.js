@@ -1,5 +1,6 @@
 const db = require("../db");
 const h = require("../handlers");
+const { camelCase } = require("../helpers");
 
 const newRoundListener = async (io, socket, data) => {
   console.log("NEW ROUND TRIGGERED!");
@@ -10,16 +11,23 @@ const newRoundListener = async (io, socket, data) => {
 
   // For each player in game, deal in additional cards
   const players = await h.handlePlayers(game);
-  players.map(async (player) => {
-    const playerHand = await db.getHand(player.id);
-    const updatedPlayerHand = await h.handleHand(
-      playerHand,
-      player.id,
-      true,
-      deck
-    );
-    io.to(player.id).emit("hand", updatedPlayerHand);
-  });
+  const updatedPlayerHands = await Promise.all(
+    players.map(async (player) => {
+      const playerHand = await db.getHand(player.playerGamesId);
+      const updatedPlayerHand = await h.handleHand(
+        playerHand,
+        player.playerGamesId,
+        true,
+        deck
+      );
+      return {
+        playerId: player.playerId,
+        hand: updatedPlayerHand.map((card) => camelCase(card)),
+      };
+    })
+  );
+
+  io.in(game).emit("fresh hands", updatedPlayerHands);
 
   io.in(game).emit("players", players);
   io.in(game).emit("round", roundAndSubmissionDataToReturn);
