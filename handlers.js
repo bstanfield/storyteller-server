@@ -55,18 +55,25 @@ const handleCardSubmissions = async (game) => {
   );
 
   const votes = await db.getVotes(round.id);
-  let playersThatHaveVoted = votes.map((vote) => vote.voter_player_games_id);
+  let playersThatHaveVoted = votes.map((vote) => camelCase(vote));
   let playersThatHaveNotVoted = [];
   for (let player of players) {
+    const playerGameIdsOfVoters = playersThatHaveVoted.map(
+      (player) => player.voterPlayerGamesId
+    );
     if (
-      !playersThatHaveVoted.includes(player.player_games_id) &&
+      !playerGameIdsOfVoters.includes(player.player_games_id) &&
       player.player_id !== round.storyteller.playerId
     ) {
       playersThatHaveNotVoted.push(camelCase(player));
     }
   }
 
-  if (playersThatHaveNotVoted.length === 0 && players.length > 1) {
+  if (
+    playersThatHaveNotVoted.length === 0 &&
+    players.length > 1 &&
+    !round.completedAt
+  ) {
     // Set round completed_at to now
     await db.addCompletedAtToRound(round.id);
     round.completedAt = new Date();
@@ -117,17 +124,21 @@ const handleHand = async (hand, player_games_id, newRound, deck) => {
       }
       randomCards.push(deck[randomIndex]);
     }
+    console.log("insertHandCard 1");
     randomCards.map((card) => db.insertHandCard(player_games_id, card.id));
     return randomCards;
   } else if (newRound && cardsInHandUnplayed.length < idealHandSize) {
+    console.log("Adding new cards to hand!");
     // TODO: Update this to use randomIndex
     // If newRound, and there are less than 7 cards in hand, add cards until 6
     const cardsToAdd = idealHandSize - cardsInHand.length;
+    console.log("cardsToAdd: ", cardsToAdd);
     const randomCards = [];
     for (let i = 0; i < cardsToAdd; i++) {
       const randomIndex = Math.floor(Math.random() * deck.length);
       randomCards.push(deck[randomIndex]);
     }
+    console.log("insertHandCard 1");
     randomCards.map((card) => db.insertHandCard(player_games_id, card.id));
     return [...cardsInHandUnplayed, ...randomCards];
   } else {
@@ -135,15 +146,16 @@ const handleHand = async (hand, player_games_id, newRound, deck) => {
   }
 };
 
-// NOTE: This does not create a new round if the current round is completed
 const handleRound = async (game) => {
   const rounds = await db.getRounds(game);
-  const latestRound = rounds[rounds.length - 1];
-  if (latestRound) {
+  const [latestRound] = rounds;
+
+  if (latestRound && latestRound.completed_at === null) {
     const [storyteller] = await db.getPlayer(latestRound.player_storyteller);
     return camelCase({ storyteller, ...latestRound });
   } else {
-    // If there is no round, create a new one
+    // If there is no round, create a new one.
+    // Also, if the latest round is completed, create a new one
     const players = await db.getPlayersInGame(game);
     const playerIds = players.map((player) => player.player_id);
     const storyteller = pickStoryteller(playerIds, rounds.length);
@@ -186,6 +198,7 @@ const determinePlayerStatus = async (players, game) => {
       }
     });
   } else if (submissions.playersThatHaveNotSubmitted.length > 0) {
+    console.log("SUBMISSION PHASE");
     // Submission phase
     playersWithStatus.forEach((player, i) => {
       if (
@@ -202,7 +215,7 @@ const determinePlayerStatus = async (players, game) => {
         playersWithStatus[i].status = "waiting";
       }
     });
-  } else {
+  } else if (votes.playersThatHaveNotVoted.length > 0) {
     // Voting phase
     playersWithStatus.forEach((player, i) => {
       if (
@@ -218,6 +231,12 @@ const determinePlayerStatus = async (players, game) => {
       if (player.playerId === storyteller.playerId) {
         playersWithStatus[i].status = "waiting";
       }
+    });
+  } else {
+    console.log("SCORING PHASE");
+    // Scoring phase
+    playersWithStatus.forEach((player, i) => {
+      playersWithStatus[i].status = "hidden";
     });
   }
 

@@ -6,6 +6,8 @@ const newRoundListener = async (io, socket, data) => {
   const { game } = data;
   const deck = await h.handleDeck(game);
 
+  const roundAndSubmissionDataToReturn = await h.handleCardSubmissions(game);
+
   // For each player in game, deal in additional cards
   const players = await h.handlePlayers(game);
   players.map(async (player) => {
@@ -18,8 +20,6 @@ const newRoundListener = async (io, socket, data) => {
     );
     io.to(player.id).emit("hand", updatedPlayerHand);
   });
-
-  const roundAndSubmissionDataToReturn = await h.handleCardSubmissions(game);
 
   io.in(game).emit("players", players);
   io.in(game).emit("round", roundAndSubmissionDataToReturn);

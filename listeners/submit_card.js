@@ -8,6 +8,21 @@ const submitCardListener = async (io, socket, data) => {
   const [playerInGame] = await db.getPlayerInGame(playerId, game);
   const [card] = await db.getCardByImgixPath(imgixPath);
 
+  // Check if the player has already submitted a card
+  // const playersThatHaveSubmitted = await db.getPlayersWithHandCardWithRoundId(
+  //   round.id
+  // );
+  // console.log("playersThatHaveSubmitted: ", playersThatHaveSubmitted);
+  // const playerHasAlreadySubmitted = playersThatHaveSubmitted.some(
+  //   (player) => player.player_games_id === playerInGame.id
+  // );
+
+  // if (playerHasAlreadySubmitted) {
+  //   // TODO: Disable this to allow 3-player mode
+  //   console.log("Player already submitted a card");
+  //   return;
+  // }
+
   // Stamps the card with the round id
   await db.updateHandCardWithRoundId(round.id, playerInGame.id, card.id);
 

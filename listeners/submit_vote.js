@@ -24,9 +24,7 @@ const submitVoteListener = async (io, socket, data) => {
     playerGameIdThatReceivedVote
   );
 
-  // Ensure this can handle votes
   const roundAndSubmissionDataToReturn = await h.handleCardSubmissions(game);
-  // TODO: Add a way to set completed_at for a round
   const players = await h.handlePlayers(game);
 
   io.in(game).emit("players", players);
