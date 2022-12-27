@@ -1,1 +1,5 @@
-crosswords
+node_modules
+migrations
+package.json
+package-lock.json
+.env

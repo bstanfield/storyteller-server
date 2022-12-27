@@ -7,6 +7,13 @@ const port = process.env.PORT || 4001;
 const index = require("./routes/index");
 const cors = require("cors");
 const { camelCase, pickStoryteller } = require("./helpers");
+const {
+  handleDeck,
+  handleCardSubmissions,
+  handlePlayers,
+  handleHand,
+  handleRound,
+} = require("./handlers");
 
 const app = express();
 app.use(cors());
@@ -23,185 +30,6 @@ const io = socketIo(server, {
 
 let connectedClients = [];
 
-const getDeck = async (game) => {
-  // Get all players in game
-  const players = await db.getPlayersInGame(game);
-  // Get all player hands
-  const playerHands = await Promise.all(
-    players.map(async (player) => {
-      const hand = await db.getHand(player.player_games_id);
-      return {
-        player_id: player.player_id,
-        hand,
-      };
-    }
-  ));
-  
-  // Get all cards not in player hands
-  const deck = await db.getCards();
-  const cardsInHands = playerHands.map(player => player.hand).flat();
-  const remainingCardsInDeck = deck.filter(card => !cardsInHands.find(cardInHand => cardInHand.card_id === card.id));
-  return remainingCardsInDeck;
-}
-
-const handleCardSubmissions = async (game) => {
-  const players = await db.getPlayersInGame(game);
-  const round = await handleRound(game);
-
-  let playersThatHaveSubmitted = (await db.getPlayersWithHandCardWithRoundId(round.id)).map(player => player);
-  let playersThatHaveNotSubmitted = [];
-  for (let player of players) {
-    const submitted = playersThatHaveSubmitted.map(player => player.player_games_id);
-    if (!submitted.includes(player.player_games_id) && player.player_id !== round.storyteller.playerId) {
-      playersThatHaveNotSubmitted.push(camelCase(player));
-    }
-  }
-
-  playersThatHaveSubmitted = await Promise.all(playersThatHaveSubmitted.map(async (submission) => {
-    const [card] = await db.getCard(submission.card_id);
-    return {
-      ...camelCase(submission),
-      imgixPath: card.imgix_path,
-    }
-  }));
-
-  const votes = await db.getVotes(round.id);
-  let playersThatHaveVoted = votes.map(vote => vote.voter_player_games_id);
-  let playersThatHaveNotVoted = [];
-  for (let player of players) {
-    if (!playersThatHaveVoted.includes(player.player_games_id) && player.player_id !== round.storyteller.playerId) {
-      playersThatHaveNotVoted.push(camelCase(player));
-    }
-  }
-
-  return {
-    ...camelCase(round),
-    submissions:
-    {
-      playersThatHaveSubmitted,
-      playersThatHaveNotSubmitted
-    },
-    votes: {
-      playersThatHaveVoted,
-      playersThatHaveNotVoted
-    }
-  };
-}
-
-// Write a function that takes in a hand and ensures that it always has 7 cards in it
-// Todo: Need to be able to shuffle deck when out of cards
-const handleHand = async (hand, player_games_id, newRound, deck) => {
-  let idealHandSize = 6;
-  const cardsInDb = await db.getCards();
-  
-  // Includes cards that have been played by the player
-  const cardsInHand = hand.map(card => {
-    return {
-      card_id: card.card_id,
-      played_at: card.played_at,
-      imgix_path: cardsInDb.find(cardInDb => cardInDb.id === card.card_id).imgix_path
-    }
-  });
-  const cardsInHandUnplayed = cardsInHand.filter(card => card.played_at === null);
-  if (cardsInHandUnplayed.length === 0) {
-    // Get 7 random cards from deck
-    const randomCards = [];
-    for (let i = 0; i < idealHandSize; i++) {
-      let randomIndices = [];
-      let randomIndex = Math.floor(Math.random() * deck.length);
-      // Keep cycling until you get a non-duplicate index
-      while (randomIndices.includes(randomIndex)) {
-        randomIndex = Math.floor(Math.random() * deck.length);
-      }
-      randomCards.push(deck[randomIndex]);
-    }
-    randomCards.map(card => db.insertHandCard(player_games_id, card.id));
-    return randomCards;
-  } else if (newRound && cardsInHandUnplayed.length < idealHandSize) {
-    // TODO: Update this to use randomIndex
-    // If newRound, and there are less than 7 cards in hand, add cards until 6
-    const cardsToAdd = idealHandSize - cardsInHand.length;
-    const randomCards = [];
-    for (let i = 0; i < cardsToAdd; i++) {
-      const randomIndex = Math.floor(Math.random() * deck.length);
-      randomCards.push(deck[randomIndex]);
-    }
-    randomCards.map(card => db.insertHandCard(player_games_id, card.id));
-    return [...cardsInHandUnplayed, ...randomCards];
-  } else {
-    return cardsInHandUnplayed; // Only return cards that have not been played yet
-  }
-}
-
-const handleRound = async (game) => {
-  const rounds = await db.getRounds(game);
-  const latestRound = rounds[rounds.length - 1];
-  if (latestRound?.completed_at === null) {
-    const [storyteller] = await db.getPlayer(latestRound.player_storyteller);
-    return camelCase({ storyteller, ...latestRound });
-  } else {
-    // If there is no round, or the round is completed, create a new round
-    const players = await db.getPlayersInGame(game);
-    const playerIds = players.map((player) => player.player_id);
-    const storyteller = pickStoryteller(playerIds, rounds.length);
-    const storytellerObj = players.find((player) => player.player_id === storyteller);
-    const [round] = await db.insertRound(game, storyteller);
-    return camelCase({ storyteller: storytellerObj, ...round });
-  }
-}
-
-const determinePlayerStatus = async (players, game) => {
-  // Player status is either "playing" or "waiting", depending on whether they have submitted a card
-  let playersWithStatus = players.map(player => camelCase(player)); // Need to get this in camel case to match roundAndSubmissionData
-  const roundAndSubmissionData = await handleCardSubmissions(game);
-
-  const { submissions, votes, storyteller } = roundAndSubmissionData;
-  
-  if (roundAndSubmissionData.clue === null) {
-    // Clue phase
-    playersWithStatus.forEach((player, i) => {
-      if (player.playerId === storyteller.playerId) {
-        playersWithStatus[i].status = "playing";
-      } else {
-        playersWithStatus[i].status = "waiting";
-      }
-    });
-  }
-  else if (submissions.playersThatHaveNotSubmitted.length > 0) {
-    // Submission phase
-    playersWithStatus.forEach((player, i) => {
-      if (submissions.playersThatHaveNotSubmitted.find((playerThatHasNotSubmitted) => playerThatHasNotSubmitted.playerId === player.playerId)) {
-        playersWithStatus[i].status = "playing";
-      } else {
-        playersWithStatus[i].status = "waiting";
-      }
-      if (player.playerId === storyteller.playerId) {
-        playersWithStatus[i].status = "waiting";
-      }
-    });
-  } else {
-    // Voting phase
-    playersWithStatus.forEach((player, i) => {
-      if (votes.playersThatHaveNotVoted.find((playerThatHasNotVoted) => playerThatHasNotVoted.playerId === player.playerId)) {
-        playersWithStatus[i].status = "playing";
-      } else {
-        playersWithStatus[i].status = "waiting";
-      }
-      if (player.playerId === storyteller.playerId) {
-        playersWithStatus[i].status = "waiting";
-      }
-    });
-  }
-
-  return playersWithStatus;
-}
-
-const handlePlayers = async (game) => {
-  const players = await db.getPlayersInGame(game);
-  const playersWithStatus = await determinePlayerStatus(players, game);
-  return playersWithStatus;
-}
-
 const startSocketServer = async () => {
   io.on("connection", async (socket) => {
     // Assign to game and hand down board
@@ -214,14 +42,19 @@ const startSocketServer = async () => {
 
       socket.emit("id", socket.id);
 
-      const deck = await getDeck(game);
+      const deck = await handleDeck(game);
 
       // Deal in the newly joined player
       const [playerInGame] = await db.getPlayerInGame(player_id, game);
       const playerHand = await db.getHand(playerInGame.id);
-      const updatedPlayerHand = await handleHand(playerHand, playerInGame.id, false, deck);
+      const updatedPlayerHand = await handleHand(
+        playerHand,
+        playerInGame.id,
+        false,
+        deck
+      );
       socket.emit("hand", updatedPlayerHand);
-      
+
       // Tell everyone who is in the game
       const players = await handlePlayers(game);
       io.to(game).emit("players", players);
@@ -243,7 +76,7 @@ const startSocketServer = async () => {
       const { game } = data;
       const roundAndSubmissionDataToReturn = await handleCardSubmissions(game);
       const players = await handlePlayers(game);
-      
+
       io.in(game).emit("players", players);
       io.in(game).emit("round", roundAndSubmissionDataToReturn);
     });
@@ -251,13 +84,18 @@ const startSocketServer = async () => {
     // A client will let the server know when a new round is requested
     socket.on("new round", async (data) => {
       const { game } = data;
-      const deck = await getDeck(game);
+      const deck = await handleDeck(game);
 
       // For each player in game, deal in additional cards
       const players = await handlePlayers(game);
       players.map(async (player) => {
         const playerHand = await db.getHand(player.id);
-        const updatedPlayerHand = await handleHand(playerHand, player.id, true, deck);
+        const updatedPlayerHand = await handleHand(
+          playerHand,
+          player.id,
+          true,
+          deck
+        );
         io.to(player.id).emit("hand", updatedPlayerHand);
       });
 
@@ -267,9 +105,9 @@ const startSocketServer = async () => {
       io.in(game).emit("round", roundAndSubmissionDataToReturn);
     });
 
-    socket.on("clue", async (data) => { 
+    socket.on("clue", async (data) => {
       const { game, clue } = data;
-    
+
       const [round] = await db.getRounds(game);
       await db.addClueToRound(round.id, clue);
       io.in(game).emit("clue", clue);
@@ -287,46 +125,53 @@ const startSocketServer = async () => {
 
       const roundAndSubmissionDataToReturn = await handleCardSubmissions(game);
       const players = await handlePlayers(game);
-      
+
       io.in(game).emit("players", players);
       io.in(game).emit("round", roundAndSubmissionDataToReturn);
     });
 
     socket.on("submit vote", async (data) => {
-      console.log('Player submitted vote: ', data);
+      console.log("Player submitted vote: ", data);
       const { game, playerId, imagePath } = data;
       const [round] = await db.getRounds(game);
 
       const [playerThatVotedObj] = await db.getPlayerInGame(playerId, game);
       const playerGameIdThatVoted = playerThatVotedObj.id;
       // Using imagePath, find playerGameId of player that received vote
-      const [player] = await db.getPlayerInGameBySubmittedImage(imagePath, round.id);
+      const [player] = await db.getPlayerInGameBySubmittedImage(
+        imagePath,
+        round.id
+      );
       const playerGameIdThatReceivedVote = player?.player_games_id;
 
       // Add vote to db
       // TODO: Don't allow ppl to vote for themselves, and to vote more than once
       // console.log('Placing vote...');
-      const vote = await db.addVote(round.id, playerGameIdThatVoted, playerGameIdThatReceivedVote);
+      const vote = await db.addVote(
+        round.id,
+        playerGameIdThatVoted,
+        playerGameIdThatReceivedVote
+      );
 
       // Ensure this can handle votes
       const roundAndSubmissionDataToReturn = await handleCardSubmissions(game);
       // console.log('Now that the vote is in, here is the round data: ', roundAndSubmissionDataToReturn);
       const players = await handlePlayers(game);
 
-      console.log('And here are the players: ', players);
-      
+      console.log("And here are the players: ", players);
+
       io.in(game).emit("players", players);
       io.in(game).emit("round", roundAndSubmissionDataToReturn);
     });
 
     socket.on("disconnect", () => {
-      console.log('client is disconnecting: ', socket.id);
+      console.log("client is disconnecting: ", socket.id);
       const clientToDelete = connectedClients.indexOf(socket.id);
       if (clientToDelete > -1) {
         connectedClients.splice(clientToDelete, 1);
-        console.log('remaining clients: ', connectedClients.length);
+        console.log("remaining clients: ", connectedClients.length);
 
-        // Count clients in game 
+        // Count clients in game
 
         // Tell everyone who is in the game
         // io.to(game).emit("players", players);
@@ -340,4 +185,4 @@ startSocketServer();
 
 server.listen(port, () => console.log(`Listening on port ${port}`));
 
-process.on('warning', e => console.warn(e.stack));
+process.on("warning", (e) => console.warn(e.stack));

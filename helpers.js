@@ -13,9 +13,10 @@ const camelCase = (obj) => {
     return acc;
   }, {});
   return output;
-}
+};
 
-const pickStoryteller = (players, roundNumber) => players[roundNumber % players.length];
+const pickStoryteller = (players, roundNumber) =>
+  players[roundNumber % players.length];
 
 module.exports = {
   camelCase,
