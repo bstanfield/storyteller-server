@@ -131,7 +131,8 @@ const handleHand = async (hand, player_games_id, newRound, deck) => {
     console.log("insertHandCard 1");
     randomCards.map((card) => db.insertHandCard(player_games_id, card.id));
     return randomCards;
-  } else if (newRound && cardsInHandUnplayed.length < idealHandSize) {
+  } else if (cardsInHandUnplayed.length < idealHandSize) {
+    // TODO: Add back newRound check
     console.log("ADDING NEW CARDS TO HAND! ------");
     // If newRound, and there are less than appropriate # of unplayed cards in hand, add cards until there are appropriate #
     const cardsToAdd = idealHandSize - cardsInHandUnplayed.length;
@@ -175,7 +176,16 @@ const handleRound = async (game) => {
 const handlePlayers = async (game) => {
   const players = await db.getPlayersInGame(game);
   const playersWithStatus = await determinePlayerStatus(players, game);
-  return playersWithStatus;
+  const playerScores = await handleScore(game);
+
+  // Merge playerScores into playersWithStatus
+  const playersWithScores = playersWithStatus.map((player) => {
+    const playerScore = playerScores.find(
+      (playerScore) => playerScore.playerId === player.playerId
+    );
+    return { ...player, score: playerScore.score };
+  });
+  return playersWithScores;
 };
 
 // If you're the storyteller, you get:
@@ -248,31 +258,72 @@ const determinePlayerStatus = async (players, game) => {
   return playersWithStatus;
 };
 
-const scorePlayer = (player, completedRounds) => {
-  for (round of completedRounds) {
+const scorePlayer = async (player, completedRounds) => {
+  let score = 0;
+  for (let round of completedRounds) {
+    const votes = await db.getVotes(round.id);
+    const [storytellerPlayer] = await db.getPlayerInGame(
+      round.player_storyteller,
+      player.game_slug
+    );
+
+    // STORYTELLER SCORING
     if (player.player_id === round.player_storyteller) {
       // Get votes for this round
-      // If at least 1 person votes for your card but not everyone, return 3
-      // If everyone votes for your card, return 0
+      let votesForStoryteller = 0;
+      for (let vote of votes) {
+        if (vote.submitter_player_games_id === player.player_games_id) {
+          votesForStoryteller++;
+        }
+      }
+
+      if (votesForStoryteller >= 1 && votesForStoryteller < votes.length) {
+        score += 3;
+      }
     } else {
-      // Get votes for this round
-      // If you vote for the storyteller's card, return 3
-      // If you don't vote for the storyteller's card, return 0
-      // Add 1 bonus point per person who votes for your card
+      // NON-STORYTELLER SCORING
+      let votesForPlayer = 0;
+      let didPlayerVoteForStoryteller = false;
+      for (let vote of votes) {
+        if (vote.submitter_player_games_id === player.player_games_id) {
+          votesForPlayer++;
+        }
+
+        // Check if player voted for storyteller
+        if (vote.voter_player_games_id === player.player_games_id) {
+          if (vote.submitter_player_games_id === storytellerPlayer.id) {
+            didPlayerVoteForStoryteller = true;
+          }
+        }
+      }
+
+      if (votesForPlayer >= 1) {
+        score += votesForPlayer;
+      }
+
+      if (didPlayerVoteForStoryteller) {
+        score += 3;
+      }
     }
   }
+  console.log("score: ", score);
+  return score;
 };
 
 const handleScore = async (game) => {
+  const players = await db.getPlayersInGame(game);
   const rounds = await db.getRounds(game);
   const completedRounds = rounds.filter((round) => round.completed_at !== null);
   if (completedRounds.length === 0) {
+    console.log("No completed rounds");
     // Return 0s
   }
-  for (player of players) {
-    console.log("player: ", player);
-    const playerScore = scorePlayer(player, completedRounds);
+  let playerScores = [];
+  for (let player of players) {
+    const playerScore = await scorePlayer(player, completedRounds);
+    playerScores.push({ playerId: player.player_id, score: playerScore });
   }
+  return playerScores;
 };
 
 module.exports = {
