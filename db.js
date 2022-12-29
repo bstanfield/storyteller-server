@@ -59,6 +59,23 @@ const getOldestGame = async () =>
 
 // Avatars
 const getAvatars = async () => db.query("SELECT * FROM avatars");
+// Return all avatars that are not already in use in a game
+const getAvailableAvatars = async (game_slug) => {
+  const avatarsInUse = await db.query(
+    "SELECT avatar_id FROM players JOIN player_games ON player_games.player_id = players.player_id WHERE game_slug = $1",
+    [game_slug]
+  );
+
+  if (avatarsInUse.length === 0) {
+    return await db.query("SELECT * FROM avatars");
+  }
+
+  const availableAvatars = await db.query(
+    "SELECT * FROM avatars WHERE id NOT IN ($1:csv)",
+    [avatarsInUse.map((avatar) => avatar.avatar_id)]
+  );
+  return availableAvatars;
+};
 
 // Rounds
 const insertRound = async (game_slug, storyteller_id) =>
@@ -153,4 +170,5 @@ module.exports = {
   addVote,
   getPlayerInGameBySubmittedImage,
   addCompletedAtToRound,
+  getAvailableAvatars,
 };

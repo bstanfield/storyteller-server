@@ -78,7 +78,8 @@ router.get("/create/avatar", async (req, res) => {
 
 // Create a route that gets avatars
 router.get("/avatars", async (req, res) => {
-  const avatars = await db.getAvatars();
+  const game = req.query.game;
+  const avatars = await db.getAvailableAvatars(game);
   res.send({ avatars: avatars.map((avatar) => camelCase(avatar)) }).status(200);
 });
 

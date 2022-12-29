@@ -115,7 +115,7 @@ const handleHand = async (hand, player_games_id, newRound, deck) => {
   const cardsInHandUnplayed = cardsInHand.filter(
     (card) => card.played_at === null
   );
-  console.log("Total unplayed cards: ", cardsInHandUnplayed.length);
+
   if (cardsInHandUnplayed.length === 0) {
     // Get 7 random cards from deck
     const randomCards = [];
@@ -128,26 +128,19 @@ const handleHand = async (hand, player_games_id, newRound, deck) => {
       }
       randomCards.push(deck[randomIndex]);
     }
-    console.log("insertHandCard 1");
     randomCards.map((card) => db.insertHandCard(player_games_id, card.id));
     return randomCards;
   } else if (cardsInHandUnplayed.length < idealHandSize) {
-    // TODO: Add back newRound check
-    console.log("ADDING NEW CARDS TO HAND! ------");
     // If newRound, and there are less than appropriate # of unplayed cards in hand, add cards until there are appropriate #
     const cardsToAdd = idealHandSize - cardsInHandUnplayed.length;
-    console.log("cardsToAdd: ", cardsToAdd);
     const randomCards = [];
     for (let i = 0; i < cardsToAdd; i++) {
       const randomIndex = Math.floor(Math.random() * deck.length);
       randomCards.push(deck[randomIndex]);
     }
-    console.log("Pre-return");
     randomCards.map((card) => db.insertHandCard(player_games_id, card.id));
-    console.log("HIT RETURN 1");
     return [...cardsInHandUnplayed, ...randomCards];
   } else {
-    console.log("HIT RETURN 2");
     return cardsInHandUnplayed; // Only return cards that have not been played yet
   }
 };
