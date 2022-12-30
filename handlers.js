@@ -112,20 +112,24 @@ const handleHand = async (hand, player_games_id, newRound, deck) => {
 
   console.log("New round: ", newRound);
   console.log("Player Games ID: ", player_games_id);
+  console.log("cards in hand: ", cardsInHand.length);
+
   const cardsInHandUnplayed = cardsInHand.filter(
     (card) => card.played_at === null
   );
+  console.log("cards in hand unplayed: ", cardsInHandUnplayed.length);
 
   if (cardsInHandUnplayed.length === 0) {
     // Get 7 random cards from deck
     const randomCards = [];
+    let randomIndices = [];
     for (let i = 0; i < idealHandSize; i++) {
-      let randomIndices = [];
       let randomIndex = Math.floor(Math.random() * deck.length);
       // Keep cycling until you get a non-duplicate index
       while (randomIndices.includes(randomIndex)) {
         randomIndex = Math.floor(Math.random() * deck.length);
       }
+      randomIndices.push(randomIndex);
       randomCards.push(deck[randomIndex]);
     }
     randomCards.map((card) => db.insertHandCard(player_games_id, card.id));
@@ -134,8 +138,14 @@ const handleHand = async (hand, player_games_id, newRound, deck) => {
     // If newRound, and there are less than appropriate # of unplayed cards in hand, add cards until there are appropriate #
     const cardsToAdd = idealHandSize - cardsInHandUnplayed.length;
     const randomCards = [];
+    let randomIndices = [];
     for (let i = 0; i < cardsToAdd; i++) {
       const randomIndex = Math.floor(Math.random() * deck.length);
+      // Keep cycling until you get a non-duplicate index
+      while (randomIndices.includes(randomIndex)) {
+        randomIndex = Math.floor(Math.random() * deck.length);
+      }
+      randomIndices.push(randomIndex);
       randomCards.push(deck[randomIndex]);
     }
     randomCards.map((card) => db.insertHandCard(player_games_id, card.id));
@@ -206,7 +216,6 @@ const determinePlayerStatus = async (players, game) => {
       }
     });
   } else if (submissions.playersThatHaveNotSubmitted.length > 0) {
-    console.log("SUBMISSION PHASE");
     // Submission phase
     playersWithStatus.forEach((player, i) => {
       if (
@@ -241,7 +250,6 @@ const determinePlayerStatus = async (players, game) => {
       }
     });
   } else {
-    console.log("SCORING PHASE");
     // Scoring phase
     playersWithStatus.forEach((player, i) => {
       playersWithStatus[i].status = "hidden";
@@ -299,7 +307,6 @@ const scorePlayer = async (player, completedRounds) => {
       }
     }
   }
-  console.log("score: ", score);
   return score;
 };
 

@@ -3,7 +3,6 @@ const h = require("../handlers");
 const { camelCase } = require("../helpers");
 
 const joinListener = async (io, socket, data) => {
-  console.log("user is joining!");
   const { player_id, game } = data;
   // TODO: If game doesn't have a deck yet, create one
 
