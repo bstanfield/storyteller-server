@@ -14,13 +14,15 @@ const joinListener = async (io, socket, data) => {
   const deck = await h.handleDeck(game);
 
   // Deal in the newly joined player
+  const players = await h.handlePlayers(game);
   const [playerInGame] = await db.getPlayerInGame(player_id, game);
   const playerHand = await db.getHand(playerInGame.id);
   const updatedPlayerHand = await h.handleHand(
     playerHand,
     playerInGame.id,
     false,
-    deck
+    deck,
+    players
   );
   socket.emit(
     "hand",
@@ -28,7 +30,6 @@ const joinListener = async (io, socket, data) => {
   );
 
   // Tell everyone who is in the game
-  const players = await h.handlePlayers(game);
   io.to(game).emit("players", players);
 };
 
