@@ -16,8 +16,6 @@ const submitVoteListener = async (io, socket, data) => {
   const playerGameIdThatReceivedVote = player?.player_games_id;
 
   // Add vote to db
-  // TODO: Don't allow ppl to vote for themselves, and to vote more than once
-  // console.log('Placing vote...');
   const vote = await db.addVote(
     round.id,
     playerGameIdThatVoted,

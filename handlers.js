@@ -1,3 +1,4 @@
+const e = require("express");
 const db = require("./db");
 const { camelCase, pickStoryteller } = require("./helpers");
 
@@ -24,8 +25,38 @@ const handleDeck = async (game) => {
   return remainingCardsInDeck;
 };
 
+const determineIfPlayerHasSubmitted = (
+  isThreePlayerMode,
+  player,
+  round,
+  submitted
+) => {
+  if (player.player_id == round.storyteller.playerId) {
+    return true;
+  }
+
+  let submissionsCount = 0;
+  if (isThreePlayerMode) {
+    submitted.map((playerGameId) =>
+      player.player_games_id === playerGameId ? submissionsCount++ : null
+    );
+    if (submissionsCount === 2) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  if (!submitted.includes(player.player_games_id)) {
+    return false;
+  }
+
+  return true;
+};
+
 const handleCardSubmissions = async (game) => {
   const players = await db.getPlayersInGame(game);
+  const isThreePlayerMode = players.length === 3;
   let round = await handleRound(game);
 
   let playersThatHaveSubmitted = (
@@ -37,8 +68,12 @@ const handleCardSubmissions = async (game) => {
       (player) => player.player_games_id
     );
     if (
-      !submitted.includes(player.player_games_id) &&
-      player.player_id !== round.storyteller.playerId
+      !determineIfPlayerHasSubmitted(
+        isThreePlayerMode,
+        player,
+        round,
+        submitted
+      )
     ) {
       playersThatHaveNotSubmitted.push(camelCase(player));
     }
@@ -96,8 +131,10 @@ const handleCardSubmissions = async (game) => {
 
 // Write a function that takes in a hand and ensures that it always has the appropriate number of cards in it
 // Todo: Need to be able to shuffle deck when out of cards
-const handleHand = async (hand, player_games_id, newRound, deck) => {
-  let idealHandSize = 6;
+const handleHand = async (hand, player_games_id, newRound, deck, players) => {
+  const isThreePlayerMode = players.length === 3;
+
+  let idealHandSize = isThreePlayerMode ? 7 : 6;
   const cardsInDb = await db.getCards();
 
   // Includes cards that have been played by the player
@@ -256,9 +293,6 @@ const determinePlayerStatus = async (players, game) => {
       playersWithStatus[i].status = { verb: "hidden" };
     });
   }
-
-  console.log("playersWithStatus", playersWithStatus);
-
   return playersWithStatus;
 };
 
