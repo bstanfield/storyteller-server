@@ -138,6 +138,7 @@ const handleHand = async (hand, player_games_id, newRound, deck) => {
     // If newRound, and there are less than appropriate # of unplayed cards in hand, add cards until there are appropriate #
     const cardsToAdd = idealHandSize - cardsInHandUnplayed.length;
     const randomCards = [];
+    ``;
     let randomIndices = [];
     for (let i = 0; i < cardsToAdd; i++) {
       const randomIndex = Math.floor(Math.random() * deck.length);
@@ -200,7 +201,7 @@ const handlePlayers = async (game) => {
 // 1 bonus point per person who votes for your card
 
 const determinePlayerStatus = async (players, game) => {
-  // Player status is either "playing" or "waiting", depending on whether they have submitted a card
+  // Player status is either { verb: "playing" } or { verb: "waiting" }, depending on whether they have submitted a card
   let playersWithStatus = players.map((player) => camelCase(player)); // Need to get this in camel case to match roundAndSubmissionData
   const roundAndSubmissionData = await handleCardSubmissions(game);
 
@@ -210,9 +211,9 @@ const determinePlayerStatus = async (players, game) => {
     // Clue phase
     playersWithStatus.forEach((player, i) => {
       if (player.playerId === storyteller.playerId) {
-        playersWithStatus[i].status = "playing";
+        playersWithStatus[i].status = { verb: "playing", isStoryteller: true };
       } else {
-        playersWithStatus[i].status = "waiting";
+        playersWithStatus[i].status = { verb: "waiting" };
       }
     });
   } else if (submissions.playersThatHaveNotSubmitted.length > 0) {
@@ -224,12 +225,12 @@ const determinePlayerStatus = async (players, game) => {
             playerThatHasNotSubmitted.playerId === player.playerId
         )
       ) {
-        playersWithStatus[i].status = "playing";
+        playersWithStatus[i].status = { verb: "playing" };
       } else {
-        playersWithStatus[i].status = "waiting";
+        playersWithStatus[i].status = { verb: "waiting" };
       }
       if (player.playerId === storyteller.playerId) {
-        playersWithStatus[i].status = "waiting";
+        playersWithStatus[i].status = { verb: "waiting", isStoryteller: true };
       }
     });
   } else if (votes.playersThatHaveNotVoted.length > 0) {
@@ -241,20 +242,22 @@ const determinePlayerStatus = async (players, game) => {
             playerThatHasNotVoted.playerId === player.playerId
         )
       ) {
-        playersWithStatus[i].status = "playing";
+        playersWithStatus[i].status = { verb: "playing" };
       } else {
-        playersWithStatus[i].status = "waiting";
+        playersWithStatus[i].status = { verb: "waiting" };
       }
       if (player.playerId === storyteller.playerId) {
-        playersWithStatus[i].status = "waiting";
+        playersWithStatus[i].status = { verb: "waiting", isStoryteller: true };
       }
     });
   } else {
     // Scoring phase
     playersWithStatus.forEach((player, i) => {
-      playersWithStatus[i].status = "hidden";
+      playersWithStatus[i].status = { verb: "hidden" };
     });
   }
+
+  console.log("playersWithStatus", playersWithStatus);
 
   return playersWithStatus;
 };
