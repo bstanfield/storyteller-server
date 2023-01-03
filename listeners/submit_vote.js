@@ -19,7 +19,8 @@ const submitVoteListener = async (io, socket, data) => {
   const vote = await db.addVote(
     round.id,
     playerGameIdThatVoted,
-    playerGameIdThatReceivedVote
+    playerGameIdThatReceivedVote,
+    imagePath
   );
 
   const roundAndSubmissionDataToReturn = await h.handleCardSubmissions(game);

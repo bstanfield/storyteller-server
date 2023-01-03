@@ -5,9 +5,10 @@ const pgp = require("pg-promise")({
   // Init details
 });
 
-const cn =
-  "postgres://joswxihosobhke:8b25364c1155a02019e9a9cf1c8e38e3db459d2fe2c1806fed9ba74e5f4c5e7b@ec2-18-215-96-22.compute-1.amazonaws.com:5432/d6kvt8et27gee5";
 const testing = process.env.TESTING;
+const cn = testing
+  ? process.env.DATABASE_URL
+  : "postgres://joswxihosobhke:8b25364c1155a02019e9a9cf1c8e38e3db459d2fe2c1806fed9ba74e5f4c5e7b@ec2-18-215-96-22.compute-1.amazonaws.com:5432/d6kvt8et27gee5";
 
 const db = pgp({
   connectionString: cn,
@@ -135,11 +136,12 @@ const getVotes = async (round_id) =>
 const addVote = async (
   round_id,
   voter_player_games_id,
-  submitter_player_games_id
+  submitter_player_games_id,
+  imgix_path
 ) =>
   db.query(
-    "INSERT INTO votes (round_id, voter_player_games_id, submitter_player_games_id) VALUES ($1, $2, $3)",
-    [round_id, voter_player_games_id, submitter_player_games_id]
+    "INSERT INTO votes (round_id, voter_player_games_id, submitter_player_games_id, imgix_path) VALUES ($1, $2, $3, $4)",
+    [round_id, voter_player_games_id, submitter_player_games_id, imgix_path]
   );
 
 module.exports = {

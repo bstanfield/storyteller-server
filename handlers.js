@@ -224,7 +224,11 @@ const handlePlayers = async (game) => {
     const playerScore = playerScores.find(
       (playerScore) => playerScore.playerId === player.playerId
     );
-    return { ...player, score: playerScore.score };
+    return {
+      ...player,
+      score: playerScore.score,
+      formerScore: playerScore.formerScore,
+    };
   });
   return playersWithScores;
 };
@@ -297,7 +301,62 @@ const determinePlayerStatus = async (players, game) => {
 };
 
 const scorePlayer = async (player, completedRounds) => {
+  let formerScore = 0;
   let score = 0;
+
+  const completedRoundsOrdered = completedRounds.sort(
+    (a, b) => b.completed_at - a.completed_at
+  );
+
+  const completedRoundsExceptMostRecent = completedRoundsOrdered.slice(1);
+
+  for (let round of completedRoundsExceptMostRecent) {
+    const votes = await db.getVotes(round.id);
+    const [storytellerPlayer] = await db.getPlayerInGame(
+      round.player_storyteller,
+      player.game_slug
+    );
+
+    // STORYTELLER SCORING
+    if (player.player_id === round.player_storyteller) {
+      // Get votes for this round
+      let votesForStoryteller = 0;
+      for (let vote of votes) {
+        if (vote.submitter_player_games_id === player.player_games_id) {
+          votesForStoryteller++;
+        }
+      }
+
+      if (votesForStoryteller >= 1 && votesForStoryteller < votes.length) {
+        formerScore += 3;
+      }
+    } else {
+      // NON-STORYTELLER SCORING
+      let votesForPlayer = 0;
+      let didPlayerVoteForStoryteller = false;
+      for (let vote of votes) {
+        if (vote.submitter_player_games_id === player.player_games_id) {
+          votesForPlayer++;
+        }
+
+        // Check if player voted for storyteller
+        if (vote.voter_player_games_id === player.player_games_id) {
+          if (vote.submitter_player_games_id === storytellerPlayer.id) {
+            didPlayerVoteForStoryteller = true;
+          }
+        }
+      }
+
+      if (votesForPlayer >= 1) {
+        formerScore += votesForPlayer;
+      }
+
+      if (didPlayerVoteForStoryteller) {
+        formerScore += 3;
+      }
+    }
+  }
+
   for (let round of completedRounds) {
     const votes = await db.getVotes(round.id);
     const [storytellerPlayer] = await db.getPlayerInGame(
@@ -344,7 +403,8 @@ const scorePlayer = async (player, completedRounds) => {
       }
     }
   }
-  return score;
+  console.log("former score: ", formerScore);
+  return { score, formerScore };
 };
 
 const handleScore = async (game) => {
@@ -358,7 +418,11 @@ const handleScore = async (game) => {
   let playerScores = [];
   for (let player of players) {
     const playerScore = await scorePlayer(player, completedRounds);
-    playerScores.push({ playerId: player.player_id, score: playerScore });
+    playerScores.push({
+      playerId: player.player_id,
+      score: playerScore.score,
+      formerScore: playerScore.formerScore,
+    });
   }
   return playerScores;
 };
