@@ -11,7 +11,6 @@ const newRoundListener = async (io, socket, data) => {
 
   // For each player in game, deal in additional cards
   const players = await h.handlePlayers(game);
-  console.log("players: ", players);
   const updatedPlayerHands = await Promise.all(
     players.map(async (player) => {
       const playerHand = await db.getHand(player.playerGamesId);

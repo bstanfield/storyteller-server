@@ -13,7 +13,7 @@ router.get("/create", async (req, res) => {
   const existingGameSlugs = (await db.getValidGames()).map((game) => game.slug);
 
   const generateRandomSlug = (len) => {
-    const characters = "abcdefghijkmnpqrstuvwxyz1234567890";
+    const characters = "ABCDEFGHJKMNOPQRSTUVWXYZ1234567890";
     let slug = "";
     for (let i = 0; i < len; i++) {
       slug += characters[Math.floor(Math.random() * characters.length)];
@@ -124,9 +124,11 @@ router.get("/secret", async (req, res) => {
   const game = req.query.game;
   console.log("User is trying to access game: ", game);
 
-  const existingGameSlugs = (await db.getValidGames()).map((game) => game.slug);
+  const existingGameSlugs = (await db.getValidGames()).map((game) =>
+    game.slug.toLowerCase()
+  );
 
-  if (existingGameSlugs.includes(game)) {
+  if (existingGameSlugs.includes(game.toLowerCase())) {
     return res.send({ sent: game }).status(200);
   }
 
