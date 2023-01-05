@@ -147,14 +147,9 @@ const handleHand = async (hand, player_games_id, newRound, deck, players) => {
     };
   });
 
-  console.log("New round: ", newRound);
-  console.log("Player Games ID: ", player_games_id);
-  console.log("cards in hand: ", cardsInHand.length);
-
   const cardsInHandUnplayed = cardsInHand.filter(
     (card) => card.played_at === null
   );
-  console.log("cards in hand unplayed: ", cardsInHandUnplayed.length);
 
   if (cardsInHandUnplayed.length === 0) {
     // Get 7 random cards from deck
@@ -204,8 +199,7 @@ const handleRound = async (game) => {
     // If there is no round, create a new one.
     // Also, if the latest round is completed, create a new one
     const players = await db.getPlayersInGame(game);
-    const playerIds = players.map((player) => player.player_id);
-    const storyteller = pickStoryteller(playerIds, rounds.length);
+    const storyteller = await pickStoryteller(game);
     const storytellerObj = players.find(
       (player) => player.player_id === storyteller
     );
@@ -403,7 +397,6 @@ const scorePlayer = async (player, completedRounds) => {
       }
     }
   }
-  console.log("former score: ", formerScore);
   return { score, formerScore };
 };
 
@@ -412,7 +405,6 @@ const handleScore = async (game) => {
   const rounds = await db.getRounds(game);
   const completedRounds = rounds.filter((round) => round.completed_at !== null);
   if (completedRounds.length === 0) {
-    console.log("No completed rounds");
     // Return 0s
   }
   let playerScores = [];

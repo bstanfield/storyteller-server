@@ -29,6 +29,11 @@ const startSocketServer = async () => {
     connectedClients.push(socket.id);
 
     // LISTENERS ------------------------
+    // This initial join fires when a client first connects via the invite link
+    socket.on("initial join", async (data) => {
+      await listeners.init_join(io, socket, data);
+    });
+
     socket.on("join", async (data) => {
       await listeners.join(io, socket, data);
     });
