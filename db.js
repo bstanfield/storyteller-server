@@ -6,9 +6,7 @@ const pgp = require("pg-promise")({
 });
 
 const testing = process.env.TESTING;
-const cn = testing
-  ? process.env.DATABASE_URL
-  : "postgres://joswxihosobhke:8b25364c1155a02019e9a9cf1c8e38e3db459d2fe2c1806fed9ba74e5f4c5e7b@ec2-18-215-96-22.compute-1.amazonaws.com:5432/d6kvt8et27gee5";
+const cn = process.env.DATABASE_URL;
 
 const db = pgp({
   connectionString: cn,
